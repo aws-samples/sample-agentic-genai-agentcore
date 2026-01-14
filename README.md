@@ -1,93 +1,596 @@
-# aws-genai-human-parallel-review1
+# AWS GenAI Human Parallel Review System
 
+An AI-powered multi-agent campaign review system that combines serverless backend processing with a modern React frontend. The system orchestrates parallel human-perspective reviews using diverse personas to ensure marketing campaigns resonate authentically with target audiences while maintaining legal compliance and brand standards.
 
+## Table of Contents
+- [Solution Overview](#solution-overview)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Dependencies](#dependencies)
+- [Step-by-Step Deployment](#step-by-step-deployment)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Reference](#api-reference)
+- [Monitoring & Troubleshooting](#monitoring--troubleshooting)
+- [Cleanup](#cleanup)
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Solution Overview
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+This solution implements an end-to-end AI-powered campaign review workflow:
 
-## Add your files
+1. **Document Upload**: Users upload campaign documents via a React frontend
+2. **Async Processing**: Backend triggers AI agents asynchronously for long-running analysis
+3. **Multi-Agent Review**: Three specialized AI agents analyze the campaign in parallel
+4. **Progressive Display**: Frontend polls for results and displays reviews as they become available
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Parallel Human Perspective Reviews** | 40 diverse personas representing different demographics |
+| **Compliance Validation** | Automated legal and brand guideline checks |
+| **AI-Powered Analysis** | Amazon Bedrock with Claude Sonnet 4.5 |
+| **Serverless Architecture** | Fully managed AWS infrastructure |
+| **Async Processing** | Non-blocking API with polling for results |
+| **Progressive UI** | Real-time status updates and review display |
+
+### Workflow
 
 ```
-cd existing_repo
-git remote add origin https://code.aws.dev/personal_projects/alias_a/avparkhi/aws-genai-human-parallel-review1.git
-git branch -M main
-git push -uf origin main
+User Upload → S3 Storage → Agent API (async) → AI Processing → S3 Reviews → Frontend Display
+     │            │              │                  │              │              │
+     └── Campaign ID ──────────────────────────────────────────────────────────────┘
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://code.aws.dev/personal_projects/alias_a/avparkhi/aws-genai-human-parallel-review1/-/settings/integrations)
+## Architecture
 
-## Collaborate with your team
+### Architecture Diagram
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              AWS Cloud                                           │
+│  ┌─────────────┐     ┌─────────────────────────────────────────────────────┐   │
+│  │  CloudFront │────▶│                  S3 Buckets                          │   │
+│  │    (CDN)    │     │  ┌─────────────────┐  ┌─────────────────────────┐   │   │
+│  └─────────────┘     │  │ Frontend Bucket │  │    Unified Data Bucket  │   │   │
+│         │            │  │  (React App)    │  │ /campaigns/{id}/        │   │   │
+│         │            │  └─────────────────┘  │   ├── campaign_brief.md │   │   │
+│         ▼            │                       │   ├── status.json       │   │   │
+│  ┌─────────────┐     │                       │   └── reviews/          │   │   │
+│  │   React     │     │                       │       ├── persona_xxx/  │   │   │
+│  │  Frontend   │     │                       │       └── *.md          │   │   │
+│  └─────────────┘     │                       └─────────────────────────┘   │   │
+│         │            └─────────────────────────────────────────────────────┘   │
+│         │                                                                       │
+│         ▼                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                         API Gateway                                      │   │
+│  │  ┌─────────────────────┐    ┌─────────────────────────────────────┐    │   │
+│  │  │   HTTP API          │    │         REST API                     │    │   │
+│  │  │  POST /upload       │    │    POST /review-campaign             │    │   │
+│  │  │  GET  /reviews      │    │    (Agent Orchestrator)              │    │   │
+│  │  │  GET  /health       │    │                                      │    │   │
+│  │  └─────────────────────┘    └─────────────────────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│         │                                    │                                  │
+│         ▼                                    ▼                                  │
+│  ┌─────────────────────┐          ┌─────────────────────────────────────┐      │
+│  │   Lambda Functions  │          │    Campaign Orchestrator Lambda     │      │
+│  │  ┌───────────────┐  │          │  ┌─────────────────────────────┐   │      │
+│  │  │ Upload Handler│  │          │  │   Strands Agent Framework   │   │      │
+│  │  ├───────────────┤  │          │  │  ┌─────────────────────┐    │   │      │
+│  │  │Reviews Fetcher│  │          │  │  │ Persona Reviewer    │    │   │      │
+│  │  ├───────────────┤  │          │  │  │ Agent               │────┼───┼──────┤
+│  │  │ Health Check  │  │          │  │  ├─────────────────────┤    │   │      │
+│  │  └───────────────┘  │          │  │  │ Validator Agent     │────┼───┼──────┤
+│  └─────────────────────┘          │  │  ├─────────────────────┤    │   │      │
+│                                   │  │  │ Finalizer Agent     │────┼───┼──────┤
+│                                   │  │  └─────────────────────┘    │   │      │
+│                                   │  └─────────────────────────────┘   │      │
+│                                   └─────────────────────────────────────┘      │
+│                                                    │                           │
+│                                                    ▼                           │
+│                                   ┌─────────────────────────────────────┐      │
+│                                   │         Amazon Bedrock              │      │
+│                                   │    Claude Sonnet 4.5 Model          │      │
+│                                   └─────────────────────────────────────┘      │
+│                                                    │                           │
+│                                                    ▼                           │
+│                                   ┌─────────────────────────────────────┐      │
+│                                   │         Amazon DynamoDB             │      │
+│                                   │    PersonaTable (40 personas)       │      │
+│                                   └─────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
 
-## Test and Deploy
+### Architecture Components
 
-Use the built-in continuous integration in GitLab.
+#### 1. Frontend Layer
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **React Application** | React 18, TypeScript, Vite | Single-page application for document upload and review display |
+| **CloudFront CDN** | AWS CloudFront | Global content delivery with HTTPS |
+| **S3 Static Hosting** | AWS S3 | Frontend asset storage |
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+#### 2. API Layer
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **HTTP API Gateway** | AWS API Gateway v2 | Frontend API endpoints (upload, reviews, health) |
+| **REST API Gateway** | AWS API Gateway v1 | Agent orchestrator endpoint |
+| **CORS Configuration** | API Gateway | Cross-origin request handling |
 
-***
+#### 3. Processing Layer
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Upload Lambda** | Node.js 20.x | Handles file uploads to S3 |
+| **Reviews Lambda** | Node.js 20.x | Fetches reviews from S3 |
+| **Orchestrator Lambda** | Python 3.11 | Coordinates AI agent workflow |
+| **Health Lambda** | Node.js 20.x | API health checks |
 
-# Editing this README
+#### 4. AI Agent Layer (Strands Framework)
+| Agent | Purpose |
+|-------|---------|
+| **Persona Reviewer Agent** | Reviews content from diverse demographic perspectives, provides resonance scoring |
+| **Validator Agent** | Ensures legal compliance and brand guideline adherence |
+| **Finalizer Agent** | Synthesizes feedback into actionable recommendations |
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+#### 5. Data Layer
+| Component | Purpose |
+|-----------|---------|
+| **Unified S3 Bucket** | Campaign briefs, status files, and generated reviews |
+| **DynamoDB PersonaTable** | 40 diverse persona profiles for review perspectives |
+| **Amazon Bedrock** | Claude Sonnet 4.5 model for AI analysis |
 
-## Suggestions for a good README
+---
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## Prerequisites
 
-## Name
-Choose a self-explaining name for your project.
+### Required Tools
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+| Tool | Version | Installation |
+|------|---------|--------------|
+| **AWS CLI** | v2.x+ | [Install Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
+| **AWS SAM CLI** | v1.100.0+ | [Install Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) |
+| **Node.js** | v18.x+ | [Download](https://nodejs.org/) |
+| **npm** | v9.x+ | Included with Node.js |
+| **Docker** | v20.x+ | [Install Guide](https://docs.docker.com/get-docker/) |
+| **Python** | v3.11+ | [Download](https://www.python.org/downloads/) |
+| **Git** | Latest | [Download](https://git-scm.com/) |
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### AWS Account Requirements
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+1. **Active AWS Account** with administrator access
+2. **Amazon Bedrock Access**:
+   - Navigate to Amazon Bedrock console
+   - Request access to `Claude Sonnet 4.5` model
+   - Region: `us-west-2` (recommended)
+3. **Service Quotas** (defaults are sufficient):
+   - Lambda concurrent executions: 10+
+   - API Gateway requests: 10,000/second
+   - S3 storage: 5GB+
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### IAM Permissions Required
+
+The deployment requires permissions for:
+- Lambda (create, update, invoke)
+- API Gateway (create, deploy)
+- S3 (create buckets, read/write objects)
+- CloudFront (create distribution)
+- IAM (create roles and policies)
+- CloudFormation (create/update stacks)
+- DynamoDB (create table, read/write items)
+- Bedrock (invoke models)
+
+---
+
+## Dependencies
+
+### Backend Dependencies (Python)
+
+```txt
+# lambda/requirements.txt
+strands-agents          # AWS Strands multi-agent framework
+strands-agents-tools    # Strands agent tools and utilities
+requests                # HTTP library for API calls
+bedrock-agentcore       # Amazon Bedrock agent core functionality
+boto3                   # AWS SDK for Python
+```
+
+### Frontend Dependencies (Node.js)
+
+```json
+{
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.958.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "zustand": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.27",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5"
+  }
+}
+```
+
+### AWS Services Used
+
+| Service | Purpose | Pricing Model |
+|---------|---------|---------------|
+| AWS Lambda | Serverless compute | Pay per invocation |
+| Amazon S3 | Object storage | Pay per GB stored |
+| Amazon API Gateway | REST/HTTP APIs | Pay per request |
+| Amazon CloudFront | CDN | Pay per GB transferred |
+| Amazon Bedrock | AI model inference | Pay per token |
+| Amazon DynamoDB | NoSQL database | Pay per request |
+| AWS IAM | Access management | Free |
+| AWS CloudFormation | Infrastructure as Code | Free |
+
+---
+
+## Step-by-Step Deployment
+
+### Step 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd aws-genai-human-parallel-review
+```
+
+### Step 2: Configure AWS Credentials
+
+```bash
+# Configure AWS CLI
+aws configure
+
+# Verify credentials
+aws sts get-caller-identity
+```
+
+Expected output:
+```json
+{
+    "UserId": "AKIAIOSFODNN7EXAMPLE",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/your-user"
+}
+```
+
+### Step 3: Enable Amazon Bedrock Model Access
+
+1. Open [Amazon Bedrock Console](https://console.aws.amazon.com/bedrock)
+2. Navigate to **Model access** in the left sidebar
+3. Click **Manage model access**
+4. Select **Claude Sonnet 4.5** (Anthropic)
+5. Click **Request model access**
+6. Wait for approval (usually instant)
+
+### Step 4: Set Up DynamoDB Persona Table
+
+```bash
+# Make script executable
+chmod +x scripts/setup_persona_table.sh
+
+# Run setup script
+./scripts/setup_persona_table.sh
+```
+
+Expected output:
+```
+🚀 Starting DynamoDB Persona Table Setup...
+📋 Creating PersonaTable...
+✅ Table created successfully!
+👥 Inserting 40 persona records...
+🎉 SUCCESS: All 40 persona records created!
+```
+
+### Step 5: Build the SAM Application
+
+```bash
+sam build
+```
+
+Expected output:
+```
+Building codeuri: lambda/ runtime: python3.11
+Building codeuri: lambda/upload/ runtime: nodejs20.x
+Building codeuri: lambda/reviews/ runtime: nodejs20.x
+Building codeuri: lambda/health/ runtime: nodejs20.x
+
+Build Succeeded
+```
+
+### Step 6: Deploy Infrastructure
+
+**First-time deployment (guided):**
+```bash
+sam deploy --guided
+```
+
+Provide the following inputs:
+| Prompt | Value |
+|--------|-------|
+| Stack Name | `unified-campaign-review` |
+| AWS Region | `us-west-2` |
+| Confirm changes before deploy | `Y` |
+| Allow SAM CLI IAM role creation | `Y` |
+| Disable rollback | `N` |
+| Save arguments to configuration file | `Y` |
+
+**Subsequent deployments:**
+```bash
+sam deploy
+```
+
+### Step 7: Get Deployment Outputs
+
+```bash
+# Get API endpoints
+aws cloudformation describe-stacks \
+  --stack-name unified-campaign-review \
+  --query 'Stacks[0].Outputs' \
+  --output table
+```
+
+Save these values:
+- `ApiEndpoint` - HTTP API URL
+- `CampaignOrchestratorApi` - Agent API URL
+- `CloudFrontURL` - Frontend URL
+- `FrontendBucket` - S3 bucket for frontend
+
+### Step 8: Configure Frontend Environment
+
+```bash
+# Get values from CloudFormation outputs
+API_URL=$(aws cloudformation describe-stacks --stack-name unified-campaign-review \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' --output text)
+
+AGENT_API_URL=$(aws cloudformation describe-stacks --stack-name unified-campaign-review \
+  --query 'Stacks[0].Outputs[?OutputKey==`CampaignOrchestratorApi`].OutputValue' --output text)
+
+# Create .env file
+cat > .env << EOF
+VITE_API_URL=$API_URL
+VITE_AGENT_API_URL=$AGENT_API_URL
+VITE_AWS_REGION=us-west-2
+EOF
+```
+
+### Step 9: Build and Deploy Frontend
+
+```bash
+# Install dependencies
+npm install
+
+# Build frontend
+npm run build
+
+# Get frontend bucket name
+FRONTEND_BUCKET=$(aws cloudformation describe-stacks --stack-name unified-campaign-review \
+  --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' --output text)
+
+# Deploy to S3
+aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
+
+# Invalidate CloudFront cache (optional, for updates)
+DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+  --query "DistributionList.Items[?Origins.Items[0].DomainName=='${FRONTEND_BUCKET}.s3.us-west-2.amazonaws.com'].Id" \
+  --output text)
+
+aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+```
+
+### Step 10: Access the Application
+
+```bash
+# Get CloudFront URL
+aws cloudformation describe-stacks --stack-name unified-campaign-review \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+```
+
+Open the URL in your browser to access the application.
+
+---
+
+## Configuration
+
+### Environment Variables
+
+#### Frontend (.env)
+```bash
+VITE_API_URL=https://xxxxxxxx.execute-api.us-west-2.amazonaws.com
+VITE_AGENT_API_URL=https://xxxxxxxx.execute-api.us-west-2.amazonaws.com/Prod/review-campaign
+VITE_AWS_REGION=us-west-2
+```
+
+#### Lambda (set via SAM template)
+```yaml
+CAMPAIGN_BUCKET: <auto-generated>
+S3_BUCKET: <auto-generated>
+S3_REGION: us-west-2
+```
+
+### Customization Options
+
+#### Change AI Model
+Edit `lambda/orchestrator.py` and agent files:
+```python
+model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"  # Change as needed
+```
+
+#### Adjust Lambda Timeout
+Edit `template.yaml`:
+```yaml
+Globals:
+  Function:
+    Timeout: 300  # Increase for longer processing
+    MemorySize: 1024  # Increase for better performance
+```
+
+---
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+1. **Open Application**: Navigate to CloudFront URL
+2. **Upload Document**: Drag and drop a campaign document (.md, .txt, .pdf)
+3. **Wait for Processing**: Status shows "AI processing... waiting for reviews"
+4. **View Results**: Reviews appear in tabbed interface when ready
+5. **Start New Review**: Click "Remove" to clear and upload new document
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+---
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## API Reference
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### Agent API (REST)
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+**POST /review-campaign**
+```json
+// Request
+{
+  "campaignId": "campaign-1234567890",
+  "s3Key": "campaigns/campaign-1234567890/campaign_brief.md"
+}
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+// Response (202 Accepted)
+{
+  "message": "Campaign review started",
+  "status": "processing",
+  "campaign_id": "campaign-1234567890"
+}
+```
+
+### Frontend API (HTTP)
+
+**POST /upload**
+- Uploads file to S3 with campaign structure
+
+**GET /reviews?campaignId={id}**
+- Fetches reviews for a specific campaign
+
+**GET /health**
+- Returns API health status
+
+---
+
+## Monitoring & Troubleshooting
+
+### View Lambda Logs
+
+```bash
+# Orchestrator logs
+sam logs -n CampaignOrchestratorFunction --stack-name unified-campaign-review --tail
+
+# Upload function logs
+sam logs -n UploadFunction --stack-name unified-campaign-review --tail
+```
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **502/504 Gateway Timeout** | Agent processing is async; frontend should poll for results |
+| **Bedrock Access Denied** | Enable Claude Sonnet 4.5 in Bedrock console |
+| **Reviews Not Loading** | Check campaign ID matches between upload and fetch |
+| **CORS Errors** | Verify API Gateway CORS configuration |
+
+### Debug Steps
+
+1. Check CloudWatch logs for Lambda errors
+2. Verify S3 bucket contents: `aws s3 ls s3://<bucket>/campaigns/`
+3. Test API directly with curl
+4. Check browser console for frontend errors
+
+---
+
+## Cleanup
+
+### Delete All Resources
+
+```bash
+# Delete CloudFormation stack
+sam delete --stack-name unified-campaign-review
+
+# Delete DynamoDB table
+aws dynamodb delete-table --table-name PersonaTable --region us-west-2
+```
+
+### Manual Cleanup (if needed)
+
+```bash
+# Empty and delete S3 buckets
+aws s3 rm s3://<unified-bucket> --recursive
+aws s3 rb s3://<unified-bucket>
+
+aws s3 rm s3://<frontend-bucket> --recursive
+aws s3 rb s3://<frontend-bucket>
+```
+
+---
+
+## Project Structure
+
+```
+aws-genai-human-parallel-review/
+├── lambda/                      # Backend Lambda functions
+│   ├── orchestrator.py          # Main agent orchestrator
+│   ├── requirements.txt         # Python dependencies
+│   ├── tools/                   # AI agent implementations
+│   │   ├── revieweragent.py     # Persona reviewer agent
+│   │   ├── validatoragent.py    # Compliance validator agent
+│   │   └── finalizeragent.py    # Finalizer agent
+│   ├── utils/                   # Utility modules
+│   │   ├── s3.py                # S3 operations
+│   │   └── persona_store.py     # DynamoDB persona access
+│   ├── upload/                  # Upload Lambda (Node.js)
+│   ├── reviews/                 # Reviews Lambda (Node.js)
+│   └── health/                  # Health check Lambda (Node.js)
+├── src/                         # React frontend
+│   ├── components/              # React components
+│   │   ├── FileUpload.tsx       # File upload with drag-drop
+│   │   ├── OutputPanel.tsx      # Review display panel
+│   │   └── ChatInterface.tsx    # Main interface
+│   ├── services/                # API services
+│   │   └── s3.ts                # S3 and API integration
+│   ├── store/                   # State management
+│   │   └── reviewStore.ts       # Zustand store
+│   └── App.tsx                  # Main app component
+├── scripts/                     # Setup scripts
+│   └── setup_persona_table.sh   # DynamoDB setup
+├── template.yaml                # SAM/CloudFormation template
+├── package.json                 # Frontend dependencies
+├── samconfig.toml               # SAM configuration
+├── deploy.sh                    # One-command deployment
+└── README.md                    # This file
+```
+
+---
+
+## Cost Estimation
+
+| Service | Free Tier | Estimated Monthly Cost |
+|---------|-----------|------------------------|
+| Lambda | 1M requests | $0 (within free tier) |
+| API Gateway | 1M requests | $0 (within free tier) |
+| S3 | 5GB storage | $0-5 |
+| CloudFront | 50GB transfer | $0 (within free tier) |
+| DynamoDB | 25GB storage | $0 (within free tier) |
+| **Bedrock** | Pay per token | **$5-25** |
+
+**Total estimated cost**: $5-30/month (primarily Bedrock usage)
+
+---
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT License - See LICENSE file for details.
