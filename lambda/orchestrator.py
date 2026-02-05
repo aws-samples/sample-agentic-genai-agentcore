@@ -28,10 +28,16 @@ from opentelemetry import context as otel_context
 from opentelemetry.instrumentation import auto_instrumentation
 from datetime import datetime
 
-# Import the agent functions (we'll convert them to regular functions)
+# Import the agent functions
 from tools.revieweragent import persona_reviewer_agent
 from tools.validatoragent import validator_agent
 from tools.finalizeragent import finalizer_agent
+
+# Import memory components
+from lambda.langgraph_hooks import MemoryHook, HookManager, create_hooked_node
+
+# Import memory components
+from lambda.langgraph_hooks import MemoryHook, HookManager, create_hooked_node
 
 # Import LangGraph hooks
 from lambda.langgraph_hooks import (
@@ -232,12 +238,6 @@ def create_campaign_orchestrator(
     # Create hook manager
     hook_manager = HookManager()
     
-    # Add logging hook (always enabled)
-    hook_manager.add_hook(LoggingHook(session_id=session_id, actor_id=actor_id))
-    
-    # Add metrics hook (always enabled)
-    hook_manager.add_hook(MetricsHook(session_id=session_id))
-    
     # Add memory hook if memory is configured
     if memory_client and memory_id:
         logger.info(f"[{session_id}] Enabling AgentCore Memory integration")
@@ -246,6 +246,8 @@ def create_campaign_orchestrator(
             memory_id=memory_id,
             session_id=session_id
         ))
+    else:
+        logger.info(f"[{session_id}] Running without AgentCore Memory")
     
     # Create the workflow graph
     workflow = StateGraph(CampaignState)

@@ -107,13 +107,13 @@ Resources:
           - OPTIONS
         MaxAge: 600
 
-  # Campaign Orchestrator Lambda (Agent API)
-  CampaignOrchestratorFunction:
+  # Campaign Orchestrator Lambda
+  CampaignOrchestratorStrandsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lambda/
-      Handler: orchestrator.lambda_handler
-      Runtime: python3.11
+      FunctionName: campaign-orch-langgraph
+      PackageType: Image
+      ImageUri: campaign-orch-strands:latest
       Environment:
         Variables:
           CAMPAIGN_BUCKET: !Ref UnifiedBucket
@@ -146,8 +146,11 @@ Resources:
                 - s3:ListBucket
               Resource: 
                 - !Sub "arn:aws:s3:::${UnifiedBucket}/*"
-                - !GetAtt UnifiedBucket.Arn
-
+                - !GetAtt UnifiedBucket.Arn   
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+  
   # Upload Lambda Function
   UploadFunction:
     Type: AWS::Serverless::Function
@@ -171,6 +174,13 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /upload
             Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+          - index.js
 
   # Reviews Lambda Function
   ReviewsFunction:
@@ -195,6 +205,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /reviews
             Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Format: esm
+        EntryPoints: 
+          - index.mjs
 
   # Health Check Lambda Function
   HealthFunction:
@@ -212,6 +230,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /health
             Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Format: esm
+        EntryPoints: 
+          - index.mjs
 
 Outputs:
   CampaignOrchestratorApi:

@@ -3,6 +3,7 @@ langchain-aws
 langchain-core
 requests
 boto3
+bedrock-agentcore
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-instrumentation
