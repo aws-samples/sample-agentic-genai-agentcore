@@ -34,13 +34,10 @@ from tools.validatoragent import validator_agent
 from tools.finalizeragent import finalizer_agent
 
 # Import memory components
-from lambda.langgraph_hooks import MemoryHook, HookManager, create_hooked_node
-
-# Import memory components
-from lambda.langgraph_hooks import MemoryHook, HookManager, create_hooked_node
+from langgraph_hooks import MemoryHook, HookManager, create_hooked_node
 
 # Import LangGraph hooks
-from lambda.langgraph_hooks import (
+from langgraph_hooks import (
     HookManager,
     LoggingHook,
     MemoryHook,

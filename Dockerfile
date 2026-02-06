@@ -6,6 +6,7 @@ RUN pip install -r requirements.txt
 
 # Copy function code and tools
 COPY lambda/orchestrator.py ${LAMBDA_TASK_ROOT}
+COPY lambda/langgraph_hooks.py ${LAMBDA_TASK_ROOT}
 COPY tools/ ${LAMBDA_TASK_ROOT}/tools/
 COPY utils/ ${LAMBDA_TASK_ROOT}/utils/
 
