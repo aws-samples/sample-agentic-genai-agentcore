@@ -107,46 +107,56 @@ Resources:
           - OPTIONS
         MaxAge: 600
 
-  # Campaign Orchestrator Lambda (Agent API)
-  CampaignOrchestratorFunction:
+  # AgentCore deployment Lambda
+  DeployAgentCoreFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lambda/
-      Handler: orchestrator.lambda_handler
-      Runtime: python3.11
+      FunctionName: deploy-agentcore
+      PackageType: Image
+      ImageUri: deploy-agentcore:latest
+      Timeout: 900  # 15 minutes for deployment
+      MemorySize: 2048  # Need more memory for Docker operations
       Environment:
         Variables:
+          AWS_REGION: !Ref AWS::Region
           CAMPAIGN_BUCKET: !Ref UnifiedBucket
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Path: /review-campaign
-            Method: post
       Policies:
         - Statement:
             - Effect: Allow
               Action:
-                - lambda:InvokeFunction
-              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+                - bedrock-agentcore:*
+                - bedrock-agentcore-control:*
+              Resource: "*"
             - Effect: Allow
               Action:
-                - bedrock:InvokeModel
-                - bedrock:InvokeModelWithResponseStream
-              Resource: "*"   
+                - ecr:*
+              Resource: "*"
             - Effect: Allow
               Action:
-                - dynamodb:GetItem
+                - iam:CreateRole
+                - iam:AttachRolePolicy
+                - iam:PassRole
+                - iam:GetRole
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - logs:*
               Resource: "*"
             - Effect: Allow
               Action:
                 - s3:GetObject
                 - s3:PutObject
-                - s3:DeleteObject
-                - s3:ListBucket
-              Resource: 
+              Resource:
                 - !Sub "arn:aws:s3:::${UnifiedBucket}/*"
-                - !GetAtt UnifiedBucket.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /deploy-agent
+            Method: post
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
 
   # Upload Lambda Function
   UploadFunction:
@@ -171,6 +181,13 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /upload
             Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+          - index.js
 
   # Reviews Lambda Function
   ReviewsFunction:
@@ -195,6 +212,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /reviews
             Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Format: esm
+        EntryPoints: 
+          - index.mjs
 
   # Health Check Lambda Function
   HealthFunction:
@@ -212,8 +237,19 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /health
             Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Format: esm
+        EntryPoints: 
+          - index.mjs
 
 Outputs:
+  DeployAgentApiEndpoint:
+    Description: "API Gateway endpoint for deploying Agent Core Runtime"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deploy-agent"
   CampaignOrchestratorApi:
     Description: "API Gateway endpoint URL for Campaign Orchestrator function"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/review-campaign/"

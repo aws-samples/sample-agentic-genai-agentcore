@@ -1,6 +1,6 @@
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
-const s3Client = new S3Client({ region: process.env.S3_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: process.env.S3_REGION || 'us-west-2' });
 
 exports.handler = async (event) => {
   console.log('Upload event:', JSON.stringify(event, null, 2));

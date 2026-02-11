@@ -1,6 +1,6 @@
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 
-const s3Client = new S3Client({ region: process.env.S3_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: process.env.S3_REGION || 'us-west-2' });
 
 export const handler = async (event) => {
   console.log('Reviews event:', JSON.stringify(event, null, 2));

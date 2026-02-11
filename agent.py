@@ -17,6 +17,7 @@ import os
 import json
 import logging
 import boto3
+from datetime import datetime
 from strands import Agent
 from strands.models import BedrockModel
 from tools.revieweragent import persona_reviewer_agent
@@ -31,7 +32,11 @@ from opentelemetry.instrumentation import auto_instrumentation
 from tools.memory_client import get_memory_client, initialize_memory
 from tools.memory_hooks import ShortTermMemoryHook
 
+# Import Bedrock Agent Core Runtime
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
+# Initialize the App
+app = BedrockAgentCoreApp()
 
 # Initialize memory
 memory_client = get_memory_client()
@@ -150,54 +155,19 @@ def create_campaign_orchestrator(trace_id: str = None, session_id: str = None, a
     
     return orchestrator
 
-# Example usage and Lambda handler
-def lambda_handler(event, context):
-    """AWS Lambda handler for campaign review orchestration"""
+# Decorate the invocation function with @app.entrypoint
+@app.entrypoint
+def process_campaign_review(payload):
+    """Bedrock Agent Core entrypoint for campaign review orchestration"""
     try:
-        # Log the incoming event for debugging
-        logger.info(f"Received event: {event}")
-        
-        # Handle CORS preflight requests
-        if event.get('httpMethod') == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token',
-                    'Access-Control-Max-Age': '86400'
-                },
-                'body': ''
-            }
-        
-        global _instrumentation_initialized
-        if not _instrumentation_initialized:
-            auto_instrumentation.initialize()
-            print("Auto instrumentation initialized")
-            _instrumentation_initialized = True
-    
-          # Generate unique session_id for this campaign review
+   
+        # Generate unique session_id for this campaign review
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         session_id = f"campaign-{timestamp}"
 
-        context_token = None
-        context_token = set_session_context(session_id)
-
-
-        # Handle API Gateway event structure
-        if 'body' in event:
-            body = json.loads(event['body']) if isinstance(event['body'], str) else event['body']
-        else:
-            body = event
-        
-        # Check if this is an async processing request (internal invocation)
-        is_async_processing = body.get('_async_processing', False)
-            
-        # Extract parameters from event body - now requires campaignId and s3Key
-        campaign_id = body.get('campaignId')
-        s3_key = body.get('s3Key')
-
-        # campaign_brief_s3_path = "campaign_brief.md"
+        # Extract parameters from agentcore invocation payload
+        campaign_id = payload.get("campaignId", "100")
+        s3_key = payload.get("s3Key", "campaign_brief.md")
         
         if not campaign_id or not s3_key:
             return {
@@ -213,42 +183,6 @@ def lambda_handler(event, context):
 
         bucket_name = os.environ.get("CAMPAIGN_BUCKET")
         
-        # If not async processing, invoke self asynchronously and return immediately
-        if not is_async_processing:
-            lambda_client = boto3.client('lambda')
-            async_payload = {
-                'campaignId': campaign_id,
-                's3Key': s3_key,
-                '_async_processing': True
-            }
-            lambda_client.invoke(
-                FunctionName=context.function_name,
-                InvocationType='Event',  # Async invocation
-                Payload=json.dumps(async_payload)
-            )
-            
-            # Write initial status
-            status_key = f"campaigns/{campaign_id}/status.json"
-            status_data = {
-                "status": "processing",
-                "stage": "queued",
-                "campaign_id": campaign_id
-            }
-            write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
-            
-            return {
-                'statusCode': 202,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({
-                    'message': 'Campaign review started',
-                    'status': 'processing',
-                    'campaign_id': campaign_id
-                })
-            }
-        
         # Async processing: do the actual work
         campaign_brief_s3_path = s3_key
         
@@ -258,21 +192,8 @@ def lambda_handler(event, context):
             actor_id="campaign_user"
         )
         
-        # Create orchestrator
-        # orchestrator = create_campaign_orchestrator()
-        
         # Set the current campaign ID for tools to use
         set_current_campaign_id(campaign_id)
-        
-        # Write status: processing
-        status_key = f"campaigns/{campaign_id}/status.json"
-        status_data = {
-            "status": "processing",
-            "stage": "reading_brief",
-            "timestamp": context.aws_request_id if context else "local",
-            "campaign_id": campaign_id
-        }
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
         
         # Read content brief from S3
         logger.info(f"Reading campaign brief from S3: {campaign_brief_s3_path}")
@@ -298,10 +219,6 @@ def lambda_handler(event, context):
                 "error": f"Failed to read content brief: {str(e)}",
             }
         
-        # Update status: generating reviews
-        status_data["stage"] = "generating_reviews"
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
-        
         # Process the request synchronously
         logger.info("Starting campaign review orchestration")
         
@@ -310,11 +227,6 @@ def lambda_handler(event, context):
         
         # Execute the orchestration
         response = orchestrator(prompt_with_campaign_id)
-        
-        # Update status: complete
-        status_data["stage"] = "complete"
-        status_data["status"] = "completed"
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
         
         logger.info("Campaign review orchestration completed successfully")
         
@@ -360,26 +272,6 @@ def lambda_handler(event, context):
             })
         }
 
-    finally:
-        if context_token:
-            otel_context.detach(context_token)
-            LOGGER.info(f"Session context detached")
-
 if __name__ == "__main__":
-    print("\n🎯 EA Campaign Review Orchestrator 🎯\n")
-    print("Orchestrating comprehensive ad campaign review...")
-    print("This will coordinate persona feedback, compliance validation, and final synthesis.")
+    app.run()
     
-    # Demo execution
-    demo_event = {
-        'franchise': 'EA Sports FC',
-        'franchise_type': 'Sports',
-        'version': 'v1'
-    }
-    
-    try:
-        result = lambda_handler(demo_event, None)
-        print(f"\nDemo Result: {result}")
-    except Exception as e:
-        print(f"\nDemo failed: {str(e)}")
-        print("Note: This demo requires proper AWS credentials and S3/DynamoDB setup.")

@@ -7,7 +7,7 @@ s3_prefix = "unified-campaign-review-test"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
-image_repositories = []
+image_repositories = ["CampaignOrchestratorStrandsFunction=689069515280.dkr.ecr.us-west-2.amazonaws.com/unifiedcampaignreviewtest58451745/campaignorchestratorstrandsfunctione87eec83repo"]
 
 [default.global.parameters]
 region = "us-west-2"

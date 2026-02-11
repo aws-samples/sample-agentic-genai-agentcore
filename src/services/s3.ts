@@ -129,8 +129,10 @@ export const fetchReviews = async (campaignId?: string): Promise<ReviewsResult> 
   }
 };
 
-// Agent API integration
-const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || 'https://your-agent-api.execute-api.us-west-2.amazonaws.com/Prod/review-campaign';
+// Bedrock Agent Core Runtime API integration
+// Format: https://<agent-alias-id>.execute-api.<region>.amazonaws.com/<stage>/invoke
+// Example: https://abc123xyz.execute-api.us-west-2.amazonaws.com/prod/invoke
+const AGENT_CORE_API_URL = import.meta.env.VITE_AGENT_CORE_API_URL || 'https://your-agent-alias-id.execute-api.us-west-2.amazonaws.com/prod/invoke';
 
 export interface AgentApiResult {
   success: boolean;
@@ -142,22 +144,35 @@ export interface AgentApiResult {
 }
 
 /**
- * Call the agent API to process a campaign
+ * Call the Bedrock Agent Core Runtime API to process a campaign
  * @param campaignId - The campaign ID
  * @param s3Key - The S3 key of the uploaded file
  * @returns Agent API result
  */
 export const callAgentAPI = async (campaignId: string, s3Key: string): Promise<AgentApiResult> => {
   try {
-    const response = await fetch(AGENT_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    // Bedrock Agent Core Runtime expects a specific payload format
+    const payload = {
+      inputText: JSON.stringify({
         campaignId,
         s3Key,
       }),
+      // Optional: Add session attributes if needed
+      sessionAttributes: {
+        campaignId,
+      },
+      // Optional: Add prompt session attributes for additional context
+      promptSessionAttributes: {},
+    };
+
+    const response = await fetch(AGENT_CORE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Note: In production, you may need to add AWS Signature V4 authentication
+        // or use AWS Amplify for automatic credential management
+      },
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
@@ -165,19 +180,23 @@ export const callAgentAPI = async (campaignId: string, s3Key: string): Promise<A
     if (!response.ok) {
       return {
         success: false,
-        error: result.error || `Agent API failed with status ${response.status}`,
+        error: result.error || `Agent Core API failed with status ${response.status}`,
       };
     }
 
+    // Parse Agent Core Runtime response format
+    // The response structure may vary based on your agent configuration
+    const agentResponse = result.completion || result.output || result;
+    
     return {
       success: true,
-      message: result.message,
-      status: result.status,
-      campaign_id: result.campaign_id,
-      results: result.results,
+      message: agentResponse.message || 'Campaign review started',
+      status: agentResponse.status || 'processing',
+      campaign_id: agentResponse.campaign_id || campaignId,
+      results: agentResponse.results,
     };
   } catch (error) {
-    console.error('Agent API error:', error);
+    console.error('Agent Core API error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown agent API error',
