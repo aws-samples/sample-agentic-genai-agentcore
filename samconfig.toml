@@ -1,13 +1,15 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "unified-campaign-review-test"
+stack_name = "genai-campaign-agentcore"
 resolve_s3 = true
-s3_prefix = "unified-campaign-review-test"
+s3_prefix = "genai-campaign-agentcore"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
-image_repositories = ["CampaignOrchestratorStrandsFunction=689069515280.dkr.ecr.us-west-2.amazonaws.com/unifiedcampaignreviewtest58451745/campaignorchestratorstrandsfunctione87eec83repo"]
+image_repositories = ["DeployAgentCoreFunction=689069515280.dkr.ecr.us-west-2.amazonaws.com/genaicampaignagentcorec390fdff/deployagentcorefunctionee5058a0repo"]
+
+
 
 [default.global.parameters]
 region = "us-west-2"

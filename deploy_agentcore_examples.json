@@ -20,7 +20,10 @@
           "agent_arn": "arn:aws:bedrock-agentcore:us-west-2:123456789012:agent-runtime/abc123xyz",
           "ecr_uri": "123456789012.dkr.ecr.us-west-2.amazonaws.com/campaign_review_agent",
           "status": "READY",
-          "test_invocation": {...}
+          "test_invocation": {
+            "success": true,
+            "response": "Test invocation completed"
+          }
         }
       }
     },

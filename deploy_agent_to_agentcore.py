@@ -28,6 +28,7 @@ def configure_agent_runtime():
     # Initialize boto session
     boto_session = Session()
     region = boto_session.region_name
+    
     print(f"Region: {region}")
     
     # Initialize Runtime

@@ -27,34 +27,215 @@ logger.setLevel(logging.INFO)
 boto_session = Session()
 
 
-def configure_agent_runtime(agent_name, region):
+def ensure_iam_role(region, account_id):
+    """
+    Ensure IAM execution role exists with proper trust policy and permissions
+    Based on deploy.sh create_iam_role function
+    Also handles existing roles with random suffixes from previous deployments
+    """
+    logger.info("Ensuring IAM execution role exists...")
+    
+    iam_client = boto3.client('iam', region_name=region)
+    role_name = f"AmazonBedrockAgentCoreSDKRuntime-{region}"
+    role_arn = None
+    
+    # First, check if there's an existing role with random suffix from previous toolkit runs
+    try:
+        paginator = iam_client.get_paginator('list_roles')
+        role_prefix = f"AmazonBedrockAgentCoreSDKRuntime-{region}-"
+        
+        for page in paginator.paginate():
+            for role in page['Roles']:
+                if role['RoleName'].startswith(role_prefix):
+                    existing_role_name = role['RoleName']
+                    logger.info(f"Found existing role with random suffix: {existing_role_name}")
+                    
+                    # Add ECR permissions to this existing role
+                    ecr_policy = {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Action": [
+                                "ecr:GetAuthorizationToken",
+                                "ecr:BatchGetImage",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:BatchCheckLayerAvailability"
+                            ],
+                            "Resource": "*"
+                        }]
+                    }
+                    
+                    iam_client.put_role_policy(
+                        RoleName=existing_role_name,
+                        PolicyName="AgentCoreECRAccess",
+                        PolicyDocument=json.dumps(ecr_policy)
+                    )
+                    logger.info(f"Added ECR permissions to existing role: {existing_role_name}")
+                    
+                    role_arn = role['Arn']
+                    role_name = existing_role_name
+                    break
+            if role_arn:
+                break
+    except Exception as e:
+        logger.warning(f"Could not search for existing roles: {str(e)}")
+    
+    # If no existing role found, check for or create the standard role
+    if not role_arn:
+        try:
+            # Check if standard role exists
+            role_response = iam_client.get_role(RoleName=role_name)
+            logger.info(f"IAM Role exists: {role_name}")
+            role_arn = role_response['Role']['Arn']
+        except iam_client.exceptions.NoSuchEntityException:
+            # Create role with trust policy for bedrock-agentcore service
+            logger.info(f"Creating IAM Role: {role_name}")
+            
+            trust_policy = {
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Principal": {"Service": "bedrock-agentcore.amazonaws.com"},
+                    "Action": "sts:AssumeRole"
+                }]
+            }
+            
+            create_response = iam_client.create_role(
+                RoleName=role_name,
+                AssumeRolePolicyDocument=json.dumps(trust_policy),
+                Description="Execution role for Bedrock Agent Core Runtime"
+            )
+            role_arn = create_response['Role']['Arn']
+            logger.info(f"Created IAM Role: {role_name}")
+            
+            # Attach AmazonBedrockFullAccess policy
+            iam_client.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn='arn:aws:iam::aws:policy/AmazonBedrockFullAccess'
+            )
+            logger.info("Attached AmazonBedrockFullAccess policy")
+        
+        # Add/Update ECR permissions (required for AgentCore to pull container images)
+        ecr_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchGetImage",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchCheckLayerAvailability"
+                ],
+                "Resource": "*"
+            }]
+        }
+        
+        try:
+            iam_client.put_role_policy(
+                RoleName=role_name,
+                PolicyName="AgentCoreECRAccess",
+                PolicyDocument=json.dumps(ecr_policy)
+            )
+            logger.info("Added ECR permissions to role")
+        except Exception as e:
+            logger.warning(f"Could not add ECR policy: {str(e)}")
+    
+    # Wait for IAM to propagate
+    logger.info("Waiting 10 seconds for IAM to propagate...")
+    time.sleep(10)
+    
+    return role_arn
+
+
+def ensure_s3_bucket(region, account_id):
+    """
+    Ensure S3 bucket exists for CodeBuild sources
+    Based on deploy.sh create_s3_bucket function
+    """
+    logger.info("Ensuring S3 bucket exists...")
+    
+    s3_client = boto3.client('s3', region_name=region)
+    bucket_name = f"bedrock-agentcore-codebuild-sources-{account_id}-{region}"
+    
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+        logger.info(f"S3 Bucket exists: {bucket_name}")
+    except:
+        logger.info(f"Creating S3 Bucket: {bucket_name}")
+        try:
+            if region == 'us-east-1':
+                s3_client.create_bucket(Bucket=bucket_name)
+            else:
+                s3_client.create_bucket(
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration={'LocationConstraint': region}
+                )
+            logger.info(f"Created S3 Bucket: {bucket_name}")
+        except Exception as e:
+            logger.warning(f"Could not create bucket: {str(e)}")
+    
+    return f"s3://{bucket_name}"
+
+
+def configure_agent_runtime(agent_name, region, account_id):
     """
     Configure the Agent Core Runtime deployment
     """
     logger.info(f"Configuring Agent Core Runtime: {agent_name}")
     
-    agentcore_runtime = Runtime()
+    # Ensure IAM role and S3 bucket exist first
+    role_arn = ensure_iam_role(region, account_id)
+    s3_path = ensure_s3_bucket(region, account_id)
     
-    response = agentcore_runtime.configure(
-        entrypoint="agent.py",
-        auto_create_execution_role=True,
-        auto_create_ecr=True,
-        requirements_file="requirements.txt",
-        region=region,
-        agent_name=agent_name
-    )
+    # Change to /tmp directory (writable in Lambda)
+    import os
+    import shutil
     
-    logger.info(f"Configuration complete: {response}")
-    return agentcore_runtime
+    # Create working directory in /tmp
+    work_dir = f"/tmp/agent-deploy-{agent_name}"
+    os.makedirs(work_dir, exist_ok=True)
+    
+    # Copy agent files to /tmp
+    shutil.copy("/var/task/agent.py", work_dir)
+    shutil.copy("/var/task/requirements.txt", work_dir)
+    shutil.copytree("/var/task/tools", f"{work_dir}/tools", dirs_exist_ok=True)
+    shutil.copytree("/var/task/utils", f"{work_dir}/utils", dirs_exist_ok=True)
+    
+    # Change to working directory
+    original_dir = os.getcwd()
+    os.chdir(work_dir)
+    
+    try:
+        agentcore_runtime = Runtime()
+        
+        response = agentcore_runtime.configure(
+            entrypoint="agent.py",
+            auto_create_execution_role=False,  # We created it manually
+            execution_role=role_arn,  # Use the role we created
+            auto_create_ecr=True,
+            auto_create_s3=False,  # We created it manually
+            s3_path=s3_path,  # Use the bucket we created
+            requirements_file="requirements.txt",
+            region=region,
+            agent_name=agent_name
+        )
+        
+        logger.info(f"Configuration complete: {response}")
+
+        
+        return agentcore_runtime
+    finally:
+        # Change back to original directory
+        os.chdir(original_dir)
 
 
-def launch_agent_runtime(agentcore_runtime):
+def launch_agent_runtime(agentcore_runtime, auto_update=True):
     """
     Launch the agent to Agent Core Runtime
     """
     logger.info("Launching Agent to Agent Core Runtime")
     
-    launch_result = agentcore_runtime.launch()
+    launch_result = agentcore_runtime.launch(auto_update_on_conflict=auto_update)
     
     logger.info(f"Launch complete - Agent ID: {launch_result.agent_id}")
     logger.info(f"Agent ARN: {launch_result.agent_arn}")
@@ -218,12 +399,16 @@ def lambda_handler(event, context):
         agent_name = body.get('agent_name', 'campaign_review_agent')
         region = body.get('region', os.environ.get('AWS_REGION', 'us-west-2'))
         
-        logger.info(f"Action: {action}, Agent: {agent_name}, Region: {region}")
+        # Get account ID
+        sts_client = boto3.client('sts')
+        account_id = sts_client.get_caller_identity()['Account']
+        
+        logger.info(f"Action: {action}, Agent: {agent_name}, Region: {region}, Account: {account_id}")
         
         # Handle different actions
         if action == 'deploy':
             # Deploy new agent
-            agentcore_runtime = configure_agent_runtime(agent_name, region)
+            agentcore_runtime = configure_agent_runtime(agent_name, region, account_id)
             launch_result = launch_agent_runtime(agentcore_runtime)
             
             # Wait for ready (with timeout)
