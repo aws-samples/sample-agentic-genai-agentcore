@@ -12,10 +12,6 @@ import logging
 from pathlib import Path
 
 import boto3
-import botocore
-from botocore.config import Config
-
-config = Config(signature_version="s3v4")
 
 # content type [enables opening file in browser]
 CONTENT_TYPES = {
@@ -39,7 +35,7 @@ CONTENT_TYPES = {
 #   S3
 #########################
 
-S3_CLIENT = boto3.client("s3", config=config)
+S3_CLIENT = boto3.client("s3")
 S3_RESOURCE = boto3.resource("s3")
 S3_WAITER = S3_CLIENT.get_waiter("object_exists")
 
@@ -75,10 +71,12 @@ def read_json_from_s3(
         data = S3_RESOURCE.Object(bucket_name, key)
         file_content = data.get()["Body"].read().decode("utf-8")
         json_data = json.loads(file_content)
-    except botocore.exceptions.ClientError as err:
-        if err.response["Error"]["Code"] == "NoSuchKey":
+    except Exception as err:
+        if hasattr(err, 'response') and err.response.get("Error", {}).get("Code") == "NoSuchKey":
             json_data = None
-            # print(f"Error reading {bucket_name}/{key}")
+        else:
+            logging.error(f"Error reading {bucket_name}/{key}: {err}")
+            json_data = None
 
     return json_data
 
@@ -106,7 +104,7 @@ def write_json_to_s3(
     try:
         json_data = json.dumps(json_data, indent=2).encode("utf-8")
         S3_CLIENT.put_object(Bucket=bucket_name, Key=key, Body=json_data)
-    except botocore.exceptions.ClientError as err:
+    except Exception as err:
         logging.error(err)
 
 
@@ -132,7 +130,7 @@ def write_text_to_s3(
     """
     try:
         S3_CLIENT.put_object(Bucket=bucket_name, Key=key, Body=text_content.encode("utf-8"), ContentType=content_type)
-    except botocore.exceptions.ClientError as err:
+    except Exception as err:
         logging.error(err)
         raise
 
@@ -159,8 +157,8 @@ def read_text_from_s3(
     try:
         data = S3_RESOURCE.Object(bucket_name, key)
         return data.get()["Body"].read().decode("utf-8")
-    except botocore.exceptions.ClientError as err:
-        if err.response["Error"]["Code"] == "NoSuchKey":
+    except Exception as err:
+        if hasattr(err, 'response') and err.response.get("Error", {}).get("Code") == "NoSuchKey":
             return None
         logging.error(err)
         raise
@@ -200,7 +198,7 @@ def create_presigned_url(s3_path, expiration=3600):
             Params=file_params,
             ExpiresIn=expiration,
         )
-    except botocore.exceptions.ClientError as error:
+    except Exception as error:
         logging.error(error)
         return None
 

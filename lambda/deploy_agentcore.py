@@ -72,6 +72,62 @@ def ensure_iam_role(region, account_id):
                     )
                     logger.info(f"Added ECR permissions to existing role: {existing_role_name}")
                     
+                    # Add Memory permissions
+                    memory_policy = {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Action": [
+                                "bedrock-agentcore:ListMemories",
+                                "bedrock-agentcore:GetMemory",
+                                "bedrock-agentcore:CreateMemory",
+                                "bedrock-agentcore:UpdateMemory",
+                                "bedrock-agentcore:DeleteMemory",
+                                "bedrock-agentcore:ListEvents",
+                                "bedrock-agentcore:GetEvent",
+                                "bedrock-agentcore:CreateEvent",
+                                "bedrock-agentcore:DeleteEvent"
+                            ],
+                            "Resource": "*"
+                        }]
+                    }
+                    
+                    iam_client.put_role_policy(
+                        RoleName=existing_role_name,
+                        PolicyName="AgentCoreMemoryAccess",
+                        PolicyDocument=json.dumps(memory_policy)
+                    )
+                    logger.info(f"Added Memory permissions to existing role: {existing_role_name}")
+                    
+                    # Add S3 permissions for campaign bucket access
+                    campaign_bucket = os.environ.get('CAMPAIGN_BUCKET', 'unified-campaign-review-test')
+                    s3_policy = {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject",
+                                "s3:ListBucket",
+                                "s3:CreateBucket",
+                                "s3:PutLifecycleConfiguration"
+                            ],
+                            "Resource": [
+                                "arn:aws:s3:::bedrock-agentcore-*",
+                                "arn:aws:s3:::bedrock-agentcore-*/*",
+                                f"arn:aws:s3:::{campaign_bucket}",
+                                f"arn:aws:s3:::{campaign_bucket}/*"
+                            ]
+                        }]
+                    }
+                    
+                    iam_client.put_role_policy(
+                        RoleName=existing_role_name,
+                        PolicyName="AgentCoreS3Access",
+                        PolicyDocument=json.dumps(s3_policy)
+                    )
+                    logger.info(f"Added S3 permissions to existing role: {existing_role_name} for bucket: {campaign_bucket}")
+                    
                     role_arn = role['Arn']
                     role_name = existing_role_name
                     break
@@ -139,6 +195,68 @@ def ensure_iam_role(region, account_id):
             logger.info("Added ECR permissions to role")
         except Exception as e:
             logger.warning(f"Could not add ECR policy: {str(e)}")
+        
+        # Add Memory permissions
+        memory_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore:ListMemories",
+                    "bedrock-agentcore:GetMemory",
+                    "bedrock-agentcore:CreateMemory",
+                    "bedrock-agentcore:UpdateMemory",
+                    "bedrock-agentcore:DeleteMemory",
+                    "bedrock-agentcore:ListEvents",
+                    "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:CreateEvent",
+                    "bedrock-agentcore:DeleteEvent"
+                ],
+                "Resource": "*"
+            }]
+        }
+        
+        try:
+            iam_client.put_role_policy(
+                RoleName=role_name,
+                PolicyName="AgentCoreMemoryAccess",
+                PolicyDocument=json.dumps(memory_policy)
+            )
+            logger.info("Added Memory permissions to role")
+        except Exception as e:
+            logger.warning(f"Could not add Memory policy: {str(e)}")
+        
+        # Add S3 permissions for campaign bucket access
+        campaign_bucket = os.environ.get('CAMPAIGN_BUCKET', 'unified-campaign-review-test')
+        s3_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                    "s3:CreateBucket",
+                    "s3:PutLifecycleConfiguration"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::bedrock-agentcore-*",
+                    "arn:aws:s3:::bedrock-agentcore-*/*",
+                    f"arn:aws:s3:::{campaign_bucket}",
+                    f"arn:aws:s3:::{campaign_bucket}/*"
+                ]
+            }]
+        }
+        
+        try:
+            iam_client.put_role_policy(
+                RoleName=role_name,
+                PolicyName="AgentCoreS3Access",
+                PolicyDocument=json.dumps(s3_policy)
+            )
+            logger.info(f"Added S3 permissions to role for bucket: {campaign_bucket}")
+        except Exception as e:
+            logger.warning(f"Could not add S3 policy: {str(e)}")
     
     # Wait for IAM to propagate
     logger.info("Waiting 10 seconds for IAM to propagate...")
@@ -217,10 +335,55 @@ def configure_agent_runtime(agent_name, region, account_id):
             s3_path=s3_path,  # Use the bucket we created
             requirements_file="requirements.txt",
             region=region,
+            memory_mode='STM_ONLY',
             agent_name=agent_name
         )
         
         logger.info(f"Configuration complete: {response}")
+        
+        # Modify the generated Dockerfile to use opentelemetry-instrument
+        dockerfile_path = os.path.join(work_dir, "Dockerfile")
+        if os.path.exists(dockerfile_path):
+            logger.info("Reading generated Dockerfile")
+            with open(dockerfile_path, 'r') as f:
+                dockerfile_content = f.read()
+            
+            # Print the original generated Dockerfile
+            logger.info("=" * 80)
+            logger.info("ORIGINAL GENERATED DOCKERFILE:")
+            logger.info("=" * 80)
+            logger.info(dockerfile_content)
+            logger.info("=" * 80)
+            
+            # Replace the CMD line to use opentelemetry-instrument
+            # The toolkit generates: CMD ["python", "agent.py"]
+            # We want: CMD ["opentelemetry-instrument", "python", "agent.py"]
+            modified_content = dockerfile_content.replace(
+                'CMD ["python", "agent.py"]',
+                'CMD ["opentelemetry-instrument", "python", "agent.py"]'
+            )
+            
+            # Also handle if it's in a different format
+            modified_content = modified_content.replace(
+                'CMD python agent.py',
+                'CMD opentelemetry-instrument python agent.py'
+            )
+            
+            # Check if modification was made
+            if modified_content != dockerfile_content:
+                with open(dockerfile_path, 'w') as f:
+                    f.write(modified_content)
+                logger.info("Dockerfile modified successfully")
+                logger.info("=" * 80)
+                logger.info("MODIFIED DOCKERFILE:")
+                logger.info("=" * 80)
+                logger.info(modified_content)
+                logger.info("=" * 80)
+            else:
+                logger.warning("No CMD line found to modify in Dockerfile")
+        else:
+            logger.warning(f"Dockerfile not found at {dockerfile_path}")
+
 
         
         return agentcore_runtime
@@ -427,8 +590,9 @@ def lambda_handler(event, context):
             
             # Test invocation
             test_payload = body.get('test_payload', {
-                'campaignId': 'test-lambda-deploy',
-                's3Key': 'campaigns/test-lambda-deploy/campaign_brief.md'
+                'campaignId': '100',
+                's3Key': 'campaign_brief.md',
+                'bucket_name': 'genai-campaign-agentcore-unifiedbucket-h0hmnuit36hc'
             })
             
             try:

@@ -4,16 +4,18 @@
 
 FROM public.ecr.aws/lambda/python:3.12
 
-# Copy and install deployment Lambda dependencies
+# Install uv for faster package installation (optional)
+RUN pip install uv
+
+# Copy and install deployment Lambda dependencies using uv for speed
 COPY lambda/requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
-RUN pip install -r ${LAMBDA_TASK_ROOT}/requirements.txt --target ${LAMBDA_TASK_ROOT}
+RUN uv pip install --system -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
 # Copy the deployment Lambda function
 COPY lambda/deploy_agentcore.py ${LAMBDA_TASK_ROOT}/
 
 # Copy agent files (toolkit will use these to build agent image)
 COPY agent.py ${LAMBDA_TASK_ROOT}/
-COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 COPY tools/ ${LAMBDA_TASK_ROOT}/tools/
 COPY utils/ ${LAMBDA_TASK_ROOT}/utils/
 

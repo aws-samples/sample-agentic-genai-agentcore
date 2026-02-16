@@ -16,18 +16,13 @@ This orchestrator coordinates three specialized agents:
 import os
 import json
 import logging
-import boto3
 from datetime import datetime
 from strands import Agent
 from strands.models import BedrockModel
 from tools.revieweragent import persona_reviewer_agent
 from tools.validatoragent import validator_agent
 from tools.finalizeragent import finalizer_agent
-from utils.s3 import read_text_from_s3, write_text_to_s3
-
-from opentelemetry import baggage 
-from opentelemetry import context as otel_context
-from opentelemetry.instrumentation import auto_instrumentation
+from utils.s3 import read_text_from_s3
 
 from tools.memory_client import get_memory_client, initialize_memory
 from tools.memory_hooks import ShortTermMemoryHook
@@ -181,7 +176,8 @@ def process_campaign_review(payload):
                 })
             }
 
-        bucket_name = os.environ.get("CAMPAIGN_BUCKET")
+        #bucket_name = os.environ.get("CAMPAIGN_BUCKET")
+        bucket_name = payload.get("bucket_name", "campaign_brief.md")
         
         # Async processing: do the actual work
         campaign_brief_s3_path = s3_key

@@ -97,8 +97,8 @@ def test_invoke(agent_arn):
         'agent_arn': agent_arn,
         'region': 'us-west-2',
         'payload': {
-            'campaignId': 'test-lambda-002',
-            's3Key': 'campaigns/test-lambda-002/campaign_brief.md'
+            'campaignId': '100',
+            's3Key': 'campaign_brief.md'
         }
     }
     

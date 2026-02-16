@@ -1,5 +1,5 @@
 """
-Memory client for Nike Supply Chain Agent using AWS Bedrock AgentCore Memory.
+Memory client for Campaign_Review_Memory using AWS Bedrock AgentCore Memory.
 """
 import os
 from bedrock_agentcore.memory import MemoryClient
@@ -28,16 +28,16 @@ def initialize_memory() -> str:
         memories = client.list_memories()
         for memory in memories:
             memory_id = memory.get('id') or memory.get('memoryId')
-            if memory_id and 'Nike_Supply_Chain_Memory' in memory_id:
+            if memory_id and 'Campaign_Review_Memory' in memory_id:
                 _memory_id = memory_id
                 print(f"✓ Using existing memory: {_memory_id}")
                 return _memory_id
         
         # Create new memory if not found
         memory = client.create_memory_and_wait(
-            name="Nike_Supply_Chain_Memory",
+            name="Campaign_Review_Memory",
             strategies=[],
-            description="Short-term memory for Nike supply chain routing agent",
+            description="Short-term memory for Campaign Review agent",
             event_expiry_days=30
         )
         _memory_id = memory['id']
@@ -51,7 +51,7 @@ def initialize_memory() -> str:
                 memories = client.list_memories()
                 for memory in memories:
                     memory_id = memory.get('id') or memory.get('memoryId')
-                    if memory_id and 'Nike_Supply_Chain_Memory' in memory_id:
+                    if memory_id and 'Campaign_Review_Memory' in memory_id:
                         _memory_id = memory_id
                         print(f"✓ Found existing memory: {_memory_id}")
                         return _memory_id
