@@ -174,7 +174,7 @@ def process_campaign_review(payload):
             actor_id="campaign_user"
         )
         
-        # Set the campaign ID and bucket name for tools to use
+        # Set the campaign ID and bucket name in the payload store for tools to use
         set_campaign_id(campaign_id)
         set_bucket_name(bucket_name)
         
