@@ -137,20 +137,20 @@ Resources:
             # Bedrock AgentCore Memory permissions
             - Effect: Allow
               Action:
-                - bedrock:CreateMemory
-                - bedrock:GetMemory
-                - bedrock:UpdateMemory
-                - bedrock:DeleteMemory
-                - bedrock:ListMemories
-                - bedrock:CreateMemorySession
-                - bedrock:GetMemorySession
-                - bedrock:DeleteMemorySession
-                - bedrock:ListMemorySessions
-                - bedrock:PutMemoryContent
-                - bedrock:GetMemoryContent
-                - bedrock:DeleteMemoryContent
-                - bedrock:QueryMemory
-                - bedrock:SearchMemory
+                - bedrock-agentcore:CreateMemory
+                - bedrock-agentcore:GetMemory
+                - bedrock-agentcore:UpdateMemory
+                - bedrock-agentcore:DeleteMemory
+                - bedrock-agentcore:ListMemories
+                - bedrock-agentcore:CreateMemorySession
+                - bedrock-agentcore:GetMemorySession
+                - bedrock-agentcore:DeleteMemorySession
+                - bedrock-agentcore:ListMemorySessions
+                - bedrock-agentcore:PutMemoryContent
+                - bedrock-agentcore:GetMemoryContent
+                - bedrock-agentcore:DeleteMemoryContent
+                - bedrock-agentcore:QueryMemory
+                - bedrock-agentcore:SearchMemory
               Resource: "*"
             - Effect: Allow
               Action:

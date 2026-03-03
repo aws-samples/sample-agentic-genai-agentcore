@@ -32,11 +32,16 @@ export function FileUpload() {
     if (reviewFetchStatus === 'polling' && currentCampaignId) {
       pollIntervalRef.current = setInterval(async () => {
         const result = await fetchReviews(currentCampaignId);
+        console.log('Polling for reviews:', result);
         if (result.success && result.reviews && result.reviews.length > 0) {
+          console.log(`Found ${result.reviews.length} reviews, stopping poll`);
           setPersonaReviews(result.reviews);
+          setReviewFetchStatus('success');
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
           }
+        } else {
+          console.log('No reviews yet, continuing to poll...');
         }
       }, 5000);
     }
@@ -46,7 +51,7 @@ export function FileUpload() {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [reviewFetchStatus, currentCampaignId, setPersonaReviews]);
+  }, [reviewFetchStatus, currentCampaignId, setPersonaReviews, setReviewFetchStatus]);
 
   const handleFileUpload = async (files: File[]) => {
     if (files.length === 0) return;
@@ -88,11 +93,14 @@ export function FileUpload() {
       // Fetch the generated reviews - start polling since async processing
       setReviewFetchStatus('fetching');
       const reviewsResult = await fetchReviews(campaignId);
+      console.log('Initial review fetch result:', reviewsResult);
       
       if (reviewsResult.success && reviewsResult.reviews && reviewsResult.reviews.length > 0) {
+        console.log(`Found ${reviewsResult.reviews.length} reviews immediately`);
         setPersonaReviews(reviewsResult.reviews);
         setReviewFetchStatus('success');
       } else {
+        console.log('No reviews yet, starting polling...');
         // No reviews yet, start polling
         setReviewFetchStatus('polling');
       }

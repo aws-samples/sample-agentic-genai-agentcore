@@ -31,15 +31,19 @@ export const handler = async (event) => {
 
     console.log(`Found ${objects.length} objects in ${reviewPrefix}`);
 
-    // Filter for .md files only
-    const mdFiles = objects.filter(obj => obj.Key && obj.Key.endsWith('.md'));
+    // Filter for campaign_review.md files only (the persona-based review)
+    const campaignReviewFiles = objects.filter(obj => 
+      obj.Key && 
+      obj.Key.endsWith('/campaign_review.md') &&
+      obj.Key.includes('/reviews/')
+    );
     
-    console.log(`Found ${mdFiles.length} .md files`);
+    console.log(`Found ${campaignReviewFiles.length} campaign_review.md files`);
 
-    // Fetch content of each .md file
+    // Fetch content of each campaign_review.md file
     const reviews = [];
     
-    for (const mdFile of mdFiles) {
+    for (const mdFile of campaignReviewFiles) {
       try {
         const getCommand = new GetObjectCommand({
           Bucket: process.env.S3_BUCKET,
@@ -49,30 +53,34 @@ export const handler = async (event) => {
         const getResponse = await s3Client.send(getCommand);
         const content = await streamToString(getResponse.Body);
 
-        // Extract folder name (persona name) from the key
-        // e.g., "campaigns/123/reviews/persona1/campaign_review.md" -> "persona1"
-        // or "review/persona1/campaign_review.md" -> "persona1"
+        // Extract persona name from the key
+        // e.g., "campaigns/campaign_123/reviews/persona_023/campaign_review.md" -> "persona_023"
         const keyParts = mdFile.Key.split('/');
-        let folderName = 'unknown';
+        let personaId = 'unknown';
         let fileName = keyParts[keyParts.length - 1];
         
         if (campaignId) {
-          // campaigns/{id}/reviews/{persona}/file.md
-          folderName = keyParts.length >= 4 ? keyParts[3] : 'unknown';
+          // campaigns/{id}/reviews/{persona}/campaign_review.md
+          // keyParts: ["campaigns", "campaign_123", "reviews", "persona_023", "campaign_review.md"]
+          if (keyParts.length >= 5 && keyParts[2] === 'reviews') {
+            personaId = keyParts[3];
+          }
         } else {
-          // review/{persona}/file.md
-          folderName = keyParts.length >= 2 ? keyParts[1] : 'unknown';
+          // review/{persona}/campaign_review.md
+          if (keyParts.length >= 3) {
+            personaId = keyParts[1];
+          }
         }
 
         reviews.push({
-          persona: folderName,
+          persona: personaId,
           fileName: fileName,
           key: mdFile.Key,
           content: content,
           lastModified: mdFile.LastModified,
         });
 
-        console.log(`Fetched review: ${mdFile.Key}`);
+        console.log(`Fetched campaign review for persona: ${personaId}`);
       } catch (fileError) {
         console.error(`Error fetching ${mdFile.Key}:`, fileError);
       }
