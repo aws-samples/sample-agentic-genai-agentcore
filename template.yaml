@@ -296,6 +296,13 @@ Resources:
               Action:
                 - ecr:GetAuthorizationToken
               Resource: "*"
+            
+            # SSM Parameter Store (write Agent ARN after deployment)
+            - Sid: SSMWriteAgentArn
+              Effect: Allow
+              Action:
+                - ssm:PutParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore/campaign-review/agent-arn"
       Events:
         ApiEvent:
           Type: Api
@@ -365,7 +372,6 @@ Resources:
       BuildProperties:
         Minify: true
         Target: "es2020"
-        Format: esm
         EntryPoints: 
           - index.mjs
 
@@ -390,9 +396,55 @@ Resources:
       BuildProperties:
         Minify: true
         Target: "es2020"
-        Format: esm
         EntryPoints: 
           - index.mjs
+
+  # SSM Parameter for Agent ARN (written by DeployAgentCoreFunction after deployment)
+  AgentArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /agentcore/campaign-review/agent-arn
+      Type: String
+      Value: PLACEHOLDER
+      Description: Agent Core Runtime ARN for campaign review agent
+
+  # Review Campaign Lambda - thin proxy that invokes AgentCore asynchronously
+  ReviewCampaignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: review-campaign
+      CodeUri: lambda/review_campaign/
+      Handler: handler.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          AGENT_ARN_PARAM: /agentcore/campaign-review/agent-arn
+          CAMPAIGN_BUCKET: !Ref UnifiedBucket
+      Policies:
+        - Statement:
+            - Sid: SSMRead
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore/campaign-review/agent-arn"
+            - Sid: LambdaSelfInvoke
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:review-campaign"
+            - Sid: AgentCoreInvoke
+              Effect: Allow
+              Action:
+                - bedrock-agentcore:InvokeAgentRuntime
+              Resource: "*"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /review-campaign
+            Method: post
 
 Outputs:
   DeployAgentApiEndpoint:

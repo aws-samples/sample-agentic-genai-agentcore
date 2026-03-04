@@ -651,6 +651,19 @@ def lambda_handler(event, context):
                     })
                 }
             
+            # Write Agent ARN to SSM for ReviewCampaignFunction to read
+            try:
+                ssm_client = boto3.client('ssm', region_name=region)
+                ssm_client.put_parameter(
+                    Name='/agentcore/campaign-review/agent-arn',
+                    Value=launch_result.agent_arn,
+                    Type='String',
+                    Overwrite=True
+                )
+                logger.info(f"Wrote Agent ARN to SSM: {launch_result.agent_arn}")
+            except Exception as e:
+                logger.warning(f"Failed to write Agent ARN to SSM: {e}")
+
             # Test invocation
             test_payload = body.get('test_payload', {
                 'campaignId': '100',

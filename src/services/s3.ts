@@ -3,9 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const UPLOAD_API_URL = `${API_BASE_URL}/upload`;
 const S3_BUCKET_NAME = import.meta.env.VITE_S3_BUCKET || 'unified-campaign-review-test';
 
-// AWS Configuration for Bedrock Agent Runtime
-const AWS_REGION = import.meta.env.VITE_AWS_REGION || 'us-west-2';
-const AGENT_RUNTIME_ARN = import.meta.env.VITE_AGENT_RUNTIME_ARN || '';
+const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || '';
 
 // Note: For browser-based AWS SDK usage, you need to configure credentials
 // Options:
@@ -148,11 +146,6 @@ export const fetchReviews = async (campaignId?: string): Promise<ReviewsResult> 
   }
 };
 
-// Bedrock Agent Core Runtime API integration using AWS SDK
-// This is the Node.js/Browser equivalent of boto3's invoke_agent_runtime
-import { BedrockAgentRuntimeClient, InvokeAgentCommand } from '@aws-sdk/client-bedrock-agent-runtime';
-import { fromEnv } from '@aws-sdk/credential-providers';
-
 export interface AgentApiResult {
   success: boolean;
   message?: string;
@@ -164,92 +157,44 @@ export interface AgentApiResult {
 }
 
 /**
- * Call the Bedrock Agent Core Runtime using AWS SDK
- * This is equivalent to invoke_agent_with_boto3 in deploy_agentcore.py
- * 
- * @param campaignId - The campaign ID
- * @param s3Key - The S3 key of the uploaded file
- * @param bucketName - The S3 bucket name
- * @returns Agent API result
+ * Call the Agent API via REST API Gateway
  */
-export const callAgentAPI = async (campaignId: string, s3Key: string, bucketName: string): Promise<AgentApiResult> => {
+export const callAgentAPI = async (campaignId: string, s3Key: string, bucketName?: string): Promise<AgentApiResult> => {
   try {
-    // Construct payload similar to boto3 invoke_agent_runtime
     const payload = {
       campaignId,
       s3Key,
-      bucket_name: bucketName,
+      bucket_name: bucketName || S3_BUCKET_NAME,
     };
 
-    console.log('Invoking agent with payload:', payload);
+    console.log('Invoking agent via REST API:', AGENT_API_URL, payload);
 
-    // Create Bedrock Agent Runtime client
-    // Note: In production, use Cognito Identity Pool for credentials
-    const client = new BedrockAgentRuntimeClient({
-      region: AWS_REGION,
-      credentials: fromEnv(), // For development only - use Cognito in production
+    const response = await fetch(AGENT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
 
-    // Prepare the invoke command
-    // This is equivalent to agentcore_client.invoke_agent_runtime() in Python
-    const command = new InvokeAgentCommand({
-      agentRuntimeArn: AGENT_RUNTIME_ARN,
-      qualifier: 'DEFAULT',
-      payload: JSON.stringify(payload),
-    });
+    const agentResponse = await response.json();
+    console.log('Agent response:', agentResponse);
 
-    console.log('Sending invoke command to agent:', AGENT_RUNTIME_ARN);
-
-    // Invoke the agent
-    const response = await client.send(command);
-
-    console.log('Agent response received:', response);
-
-    // Process the response
-    // The response may be a stream or direct response
-    let responseText = '';
-    
-    if (response.response) {
-      // Handle streaming response
-      const decoder = new TextDecoder();
-      for await (const chunk of response.response) {
-        if (chunk.chunk?.bytes) {
-          const text = decoder.decode(chunk.chunk.bytes);
-          responseText += text;
-        }
-      }
-    }
-
-    console.log('Agent response text:', responseText);
-
-    // Parse the response
-    let agentResponse: any = {};
-    if (responseText) {
-      try {
-        agentResponse = JSON.parse(responseText);
-      } catch (e) {
-        agentResponse = { message: responseText };
-      }
-    }
-
-    // Check if the response indicates success
-    if (agentResponse.statusCode && agentResponse.statusCode !== 200) {
+    if (!response.ok) {
       return {
         success: false,
-        error: agentResponse.error || `Agent returned status ${agentResponse.statusCode}`,
+        error: agentResponse.error || `Agent returned status ${response.status}`,
       };
     }
 
     return {
       success: true,
-      message: agentResponse.message || 'Campaign review completed',
-      status: agentResponse.status || 'completed',
+      message: agentResponse.message || 'Campaign review started',
+      status: agentResponse.status || 'processing',
       campaign_id: agentResponse.campaign_id || campaignId,
       results: agentResponse.results,
       response: agentResponse,
     };
   } catch (error) {
-    console.error('Agent Core API error:', error);
+    console.error('Agent API error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown agent API error',

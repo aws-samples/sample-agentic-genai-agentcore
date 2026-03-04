@@ -86,17 +86,8 @@ export function FileUpload() {
       setAgentResults(JSON.stringify(agentResponse));
       setAgentStatus('success');
       
-      // Fetch the generated reviews - start polling since async processing
-      setReviewFetchStatus('fetching');
-      const reviewsResult = await fetchReviews(campaignId);
-      
-      if (reviewsResult.success && reviewsResult.reviews && reviewsResult.reviews.length > 0) {
-        setPersonaReviews(reviewsResult.reviews);
-        setReviewFetchStatus('success');
-      } else {
-        // No reviews yet, start polling
-        setReviewFetchStatus('polling');
-      }
+      // Agent returns 202 (async) — go straight to polling for reviews
+      setReviewFetchStatus('polling');
       
     } catch (error) {
       console.error('Upload/processing error:', error);
