@@ -1,0 +1,6 @@
+langgraph
+langchain-aws
+langchain-core
+opentelemetry-api
+opentelemetry-instrumentation
+aws-opentelemetry-distro

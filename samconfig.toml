@@ -7,7 +7,7 @@ s3_prefix = "genai-campaign-lg"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
-image_repositories = ["CampaignOrchestratorLanggraphFn=689069515280.dkr.ecr.us-west-2.amazonaws.com/genaicampaignlg5a5aed9e/campaignorchestratorlanggraphfn25e5e4a1repo"]
+
 
 [default.global.parameters]
 region = "us-west-2"

@@ -107,16 +107,56 @@ Resources:
           - OPTIONS
         MaxAge: 600
 
+  # Agent Observability Log Group
+  AgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: agents/campaign-review-logs
+      RetentionInDays: 365
+
+  # Agent Observability Log Stream
+  AgentLogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref AgentLogGroup
+      LogStreamName: default
+
+  # Dependencies Layer for Orchestrator
+  OrchestratorDepsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: orchestrator-deps
+      ContentUri: lambda/layer/
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+
   # Campaign Orchestrator Lambda
   CampaignOrchestratorLanggraphFn:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: campaign-orch-langgraph
-      PackageType: Image
-      ImageUri: campaign-orch-strands:latest
+      CodeUri: lambda/
+      Handler: orchestrator.lambda_handler
+      Runtime: python3.12
+      Timeout: 600
+      Layers:
+        - !Ref OrchestratorDepsLayer
+      Tracing: Active
       Environment:
         Variables:
           CAMPAIGN_BUCKET: !Ref UnifiedBucket
+          AGENT_OBSERVABILITY_ENABLED: "true"
+          LANGSMITH_OTEL_ENABLED: "true"
+          OTEL_PYTHON_DISTRO: "aws_distro"
+          OTEL_PYTHON_CONFIGURATOR: "aws_configurator"
+          OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+          OTEL_TRACES_EXPORTER: "otlp"
+          OTEL_EXPORTER_OTLP_LOGS_HEADERS: "x-aws-log-group=agents/campaign-review-logs,x-aws-log-stream=default,x-aws-metric-namespace=bedrock-agentcore"
+          OTEL_RESOURCE_ATTRIBUTES: "service.name=campaign-review-orchestrator"
+          OTEL_PROPAGATORS: "tracecontext,baggage,xray"
+          OTEL_PYTHON_LOG_CORRELATION: "true"
       Events:
         ApiEvent:
           Type: Api
@@ -134,28 +174,15 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource: "*"
-            # Bedrock AgentCore Memory permissions
-            - Effect: Allow
-              Action:
-                - bedrock-agentcore:CreateMemory
-                - bedrock-agentcore:GetMemory
-                - bedrock-agentcore:UpdateMemory
-                - bedrock-agentcore:DeleteMemory
-                - bedrock-agentcore:ListMemories
-                - bedrock-agentcore:CreateMemorySession
-                - bedrock-agentcore:GetMemorySession
-                - bedrock-agentcore:DeleteMemorySession
-                - bedrock-agentcore:ListMemorySessions
-                - bedrock-agentcore:PutMemoryContent
-                - bedrock-agentcore:GetMemoryContent
-                - bedrock-agentcore:DeleteMemoryContent
-                - bedrock-agentcore:QueryMemory
-                - bedrock-agentcore:SearchMemory
-              Resource: "*"
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !GetAtt AgentLogGroup.Arn
             - Effect: Allow
               Action:
                 - s3:GetObject
@@ -164,10 +191,7 @@ Resources:
                 - s3:ListBucket
               Resource: 
                 - !Sub "arn:aws:s3:::${UnifiedBucket}/*"
-                - !GetAtt UnifiedBucket.Arn   
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: .
+                - !GetAtt UnifiedBucket.Arn
   
   # Upload Lambda Function
   UploadFunction:

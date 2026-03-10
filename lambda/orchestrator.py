@@ -18,6 +18,7 @@ import json
 import logging
 import boto3
 from typing import Annotated, TypedDict, Sequence
+
 from utils.s3 import read_text_from_s3, write_text_to_s3
 
 from langgraph.graph import StateGraph, END
@@ -25,8 +26,17 @@ from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage, AI
 from langchain_aws import ChatBedrock
 from opentelemetry import baggage 
 from opentelemetry import context as otel_context
+from opentelemetry import trace
 from opentelemetry.instrumentation import auto_instrumentation
 from datetime import datetime
+
+# Get tracer lazily (after auto_instrumentation.initialize() runs)
+_tracer = None
+def get_tracer():
+    global _tracer
+    if _tracer is None:
+        _tracer = trace.get_tracer("campaign-review-orchestrator")
+    return _tracer
 
 # Import the agent functions
 from tools.revieweragent import persona_reviewer_agent
@@ -62,7 +72,7 @@ def get_current_campaign_id() -> str:
 
 def set_session_context(session_id: str):
     """Set session context for OpenTelemetry"""
-    ctx = baggage.set_baggage("session_id", session_id)
+    ctx = baggage.set_baggage("session.id", session_id)
     return otel_context.attach(ctx)
 
 # Set up logging
@@ -129,74 +139,86 @@ Remember: Your goal is to ensure campaigns resonate authentically with target au
 # Define workflow nodes
 def persona_review_node(state: CampaignState) -> CampaignState:
     """Node that performs persona-based review"""
-    logger.info("Executing persona review node")
-    
-    result = persona_reviewer_agent(
-        campaign_content=state["campaign_content"],
-        campaign_id=state.get("campaign_id"),
-        franchise=state.get("franchise", "EA Sports FC"),
-        franchise_type=state.get("franchise_type", "Sports"),
-        version=state.get("version", "v1")
-    )
-    
-    if result["status"] == "success":
-        state["persona_review"] = result["persona_review"]
-        state["messages"].append(AIMessage(content=f"Persona review completed: {result['execution_summary']}"))
-    else:
-        state["error"] = result.get("error", "Persona review failed")
-        state["messages"].append(AIMessage(content=f"Persona review failed: {state['error']}"))
-    
-    return state
+    with get_tracer().start_as_current_span("persona_review_node", attributes={
+        "node.type": "persona_review",
+        "campaign.id": state.get("campaign_id", ""),
+    }):
+        logger.info("Executing persona review node")
+        
+        result = persona_reviewer_agent(
+            campaign_content=state["campaign_content"],
+            campaign_id=state.get("campaign_id"),
+            franchise=state.get("franchise", "EA Sports FC"),
+            franchise_type=state.get("franchise_type", "Sports"),
+            version=state.get("version", "v1")
+        )
+        
+        if result["status"] == "success":
+            state["persona_review"] = result["persona_review"]
+            state["messages"].append(AIMessage(content=f"Persona review completed: {result['execution_summary']}"))
+        else:
+            state["error"] = result.get("error", "Persona review failed")
+            state["messages"].append(AIMessage(content=f"Persona review failed: {state['error']}"))
+        
+        return state
 
 def validation_node(state: CampaignState) -> CampaignState:
     """Node that performs compliance validation"""
-    logger.info("Executing validation node")
-    
-    result = validator_agent(
-        campaign_content=state["campaign_content"],
-        campaign_id=state.get("campaign_id"),
-        franchise=state.get("franchise", "EA Sports FC"),
-        franchise_type=state.get("franchise_type", "Sports"),
-        version=state.get("version", "v1")
-    )
-    
-    if result["status"] == "success":
-        state["validation_report"] = result["validation_report"]
-        state["messages"].append(AIMessage(content=f"Validation completed: {result['execution_summary']}"))
-    else:
-        state["error"] = result.get("error", "Validation failed")
-        state["messages"].append(AIMessage(content=f"Validation failed: {state['error']}"))
-    
-    return state
+    with get_tracer().start_as_current_span("validation_node", attributes={
+        "node.type": "validation",
+        "campaign.id": state.get("campaign_id", ""),
+    }):
+        logger.info("Executing validation node")
+        
+        result = validator_agent(
+            campaign_content=state["campaign_content"],
+            campaign_id=state.get("campaign_id"),
+            franchise=state.get("franchise", "EA Sports FC"),
+            franchise_type=state.get("franchise_type", "Sports"),
+            version=state.get("version", "v1")
+        )
+        
+        if result["status"] == "success":
+            state["validation_report"] = result["validation_report"]
+            state["messages"].append(AIMessage(content=f"Validation completed: {result['execution_summary']}"))
+        else:
+            state["error"] = result.get("error", "Validation failed")
+            state["messages"].append(AIMessage(content=f"Validation failed: {state['error']}"))
+        
+        return state
 
 def finalizer_node(state: CampaignState) -> CampaignState:
     """Node that synthesizes final recommendations"""
-    logger.info("Executing finalizer node")
-    
-    # Check if we have the required inputs
-    if not state.get("persona_review") or not state.get("validation_report"):
-        state["error"] = "Missing persona review or validation report"
-        state["messages"].append(AIMessage(content=f"Finalization failed: {state['error']}"))
+    with get_tracer().start_as_current_span("finalizer_node", attributes={
+        "node.type": "finalizer",
+        "campaign.id": state.get("campaign_id", ""),
+    }):
+        logger.info("Executing finalizer node")
+        
+        # Check if we have the required inputs
+        if not state.get("persona_review") or not state.get("validation_report"):
+            state["error"] = "Missing persona review or validation report"
+            state["messages"].append(AIMessage(content=f"Finalization failed: {state['error']}"))
+            return state
+        
+        result = finalizer_agent(
+            campaign_content=state["campaign_content"],
+            persona_review=state["persona_review"],
+            validation_report=state["validation_report"],
+            campaign_id=state.get("campaign_id"),
+            franchise=state.get("franchise", "EA Sports FC"),
+            franchise_type=state.get("franchise_type", "Sports"),
+            version=state.get("version", "v1")
+        )
+        
+        if result["status"] == "success":
+            state["final_report"] = result["final_report"]
+            state["messages"].append(AIMessage(content=f"Finalization completed: {result['execution_summary']}"))
+        else:
+            state["error"] = result.get("error", "Finalization failed")
+            state["messages"].append(AIMessage(content=f"Finalization failed: {state['error']}"))
+        
         return state
-    
-    result = finalizer_agent(
-        campaign_content=state["campaign_content"],
-        persona_review=state["persona_review"],
-        validation_report=state["validation_report"],
-        campaign_id=state.get("campaign_id"),
-        franchise=state.get("franchise", "EA Sports FC"),
-        franchise_type=state.get("franchise_type", "Sports"),
-        version=state.get("version", "v1")
-    )
-    
-    if result["status"] == "success":
-        state["final_report"] = result["final_report"]
-        state["messages"].append(AIMessage(content=f"Finalization completed: {result['execution_summary']}"))
-    else:
-        state["error"] = result.get("error", "Finalization failed")
-        state["messages"].append(AIMessage(content=f"Finalization failed: {state['error']}"))
-    
-    return state
 
 def should_continue(state: CampaignState) -> str:
     """Determine if workflow should continue or end"""
@@ -296,17 +318,17 @@ def lambda_handler(event, context):
                 'body': ''
             }
         
+        # Initialize OTEL auto-instrumentation (once per cold start)
         global _instrumentation_initialized
         if not _instrumentation_initialized:
             auto_instrumentation.initialize()
-            print("Auto instrumentation initialized")
+            logger.info("Auto instrumentation initialized")
             _instrumentation_initialized = True
     
         # Generate unique session_id for this campaign review
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         session_id = f"campaign-{timestamp}"
 
-        context_token = None
         context_token = set_session_context(session_id)
         
         # Handle API Gateway event structure
@@ -373,140 +395,128 @@ def lambda_handler(event, context):
             }
         
         # Async processing: do the actual work
-        campaign_brief_s3_path = s3_key
-        
-        # Initialize memory if available (optional)
-        memory_client = None
-        memory_id = None
-        try:
-            # Attempt to import and initialize memory
-            from tools.memory_client import get_memory_client, initialize_memory
-            memory_client = get_memory_client()
-            memory_id = initialize_memory()
-            logger.info(f"[{session_id}] AgentCore Memory initialized: {memory_id}")
-        except ImportError:
-            logger.info(f"[{session_id}] AgentCore Memory not available (optional)")
-        except Exception as e:
-            logger.warning(f"[{session_id}] Failed to initialize memory: {e}")
-        
-        # Create orchestrator workflow with hooks
-        orchestrator, hook_manager = create_campaign_orchestrator(
-            session_id=session_id,
-            actor_id="campaign_user",
-            memory_client=memory_client,
-            memory_id=memory_id
-        )
-        
-        # Set the current campaign ID for tools to use
-        set_current_campaign_id(campaign_id)
-        
-        # Write status: processing
-        status_key = f"campaigns/{campaign_id}/status.json"
-        status_data = {
-            "status": "processing",
-            "stage": "reading_brief",
-            "timestamp": context.aws_request_id if context else "local",
-            "campaign_id": campaign_id
-        }
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
-        
-        # Read content brief from S3
-        logger.info(f"Reading campaign brief from S3: {campaign_brief_s3_path}")
-        try:
-            campaign_prompt = read_text_from_s3(bucket_name=bucket_name, key=campaign_brief_s3_path)
-            logger.info(f"Successfully read content brief ({len(campaign_prompt)} characters)")
-        except FileNotFoundError as e:
-            logger.error(f"Content brief not found at S3 path: {campaign_brief_s3_path}")
-            return {
-                "status": "error",
-                "error": f"Content brief not found at {campaign_brief_s3_path}",
-            }
-        except PermissionError as e:
-            logger.error(f"Access denied reading content brief from S3: {str(e)}")
-            return {
-                "status": "error",
-                "error": f"Access denied reading content brief from S3",
-            }
-        except Exception as e:
-            logger.error(f"Failed to read content brief from S3: {str(e)}")
-            return {
-                "status": "error",
-                "error": f"Failed to read content brief: {str(e)}",
-            }
-        
-        # Update status: generating reviews
-        status_data["stage"] = "generating_reviews"
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
-        
-        # Process the request synchronously
-        logger.info("Starting campaign review orchestration")
-        
-        # Create initial state for the workflow
-        initial_state = {
-            "campaign_content": campaign_prompt,
-            "campaign_id": campaign_id,
-            "franchise": "EA Sports FC",
-            "franchise_type": "Sports",
-            "version": "v1",
-            "persona_review": "",
-            "validation_report": "",
-            "final_report": "",
-            "messages": [HumanMessage(content=f"Review campaign for {campaign_id}")],
-            "error": ""
-        }
-        
-        # Call workflow start hooks
-        hook_manager.on_workflow_start(initial_state)
-        
-        try:
-            # Execute the orchestration workflow
-            final_state = orchestrator.invoke(initial_state)
+        with get_tracer().start_as_current_span("campaign_review_workflow", attributes={
+            "campaign.id": campaign_id,
+            "session.id": session_id,
+        }) as parent_span:
+            campaign_brief_s3_path = s3_key
             
-            # Call workflow end hooks
-            hook_manager.on_workflow_end(final_state)
-        except Exception as e:
-            # Call error hooks
-            hook_manager.on_error(e, initial_state)
-            raise
-        
-        # Update status: complete
-        status_data["stage"] = "complete"
-        status_data["status"] = "completed"
-        write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
-        
-        logger.info("Campaign review orchestration completed successfully")
-        
-        # Check for errors
-        if final_state.get("error"):
+            # Initialize memory if available (optional)
+            memory_client = None
+            memory_id = None
+            try:
+                from tools.memory_client import get_memory_client, initialize_memory
+                memory_client = get_memory_client()
+                memory_id = initialize_memory()
+                logger.info(f"[{session_id}] AgentCore Memory initialized: {memory_id}")
+            except ImportError:
+                logger.info(f"[{session_id}] AgentCore Memory not available (optional)")
+            except Exception as e:
+                logger.warning(f"[{session_id}] Failed to initialize memory: {e}")
+            
+            orchestrator, hook_manager = create_campaign_orchestrator(
+                session_id=session_id,
+                actor_id="campaign_user",
+                memory_client=memory_client,
+                memory_id=memory_id
+            )
+            
+            set_current_campaign_id(campaign_id)
+            
+            status_key = f"campaigns/{campaign_id}/status.json"
+            status_data = {
+                "status": "processing",
+                "stage": "reading_brief",
+                "timestamp": context.aws_request_id if context else "local",
+                "campaign_id": campaign_id
+            }
+            write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
+            
+            logger.info(f"Reading campaign brief from S3: {campaign_brief_s3_path}")
+            try:
+                campaign_prompt = read_text_from_s3(bucket_name=bucket_name, key=campaign_brief_s3_path)
+                logger.info(f"Successfully read content brief ({len(campaign_prompt)} characters)")
+            except FileNotFoundError as e:
+                logger.error(f"Content brief not found at S3 path: {campaign_brief_s3_path}")
+                return {
+                    "status": "error",
+                    "error": f"Content brief not found at {campaign_brief_s3_path}",
+                }
+            except PermissionError as e:
+                logger.error(f"Access denied reading content brief from S3: {str(e)}")
+                return {
+                    "status": "error",
+                    "error": f"Access denied reading content brief from S3",
+                }
+            except Exception as e:
+                logger.error(f"Failed to read content brief from S3: {str(e)}")
+                return {
+                    "status": "error",
+                    "error": f"Failed to read content brief: {str(e)}",
+                }
+            
+            status_data["stage"] = "generating_reviews"
+            write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
+            
+            logger.info("Starting campaign review orchestration")
+            
+            initial_state = {
+                "campaign_content": campaign_prompt,
+                "campaign_id": campaign_id,
+                "franchise": "EA Sports FC",
+                "franchise_type": "Sports",
+                "version": "v1",
+                "persona_review": "",
+                "validation_report": "",
+                "final_report": "",
+                "messages": [HumanMessage(content=f"Review campaign for {campaign_id}")],
+                "error": ""
+            }
+            
+            hook_manager.on_workflow_start(initial_state)
+            
+            try:
+                final_state = orchestrator.invoke(initial_state)
+                hook_manager.on_workflow_end(final_state)
+            except Exception as e:
+                hook_manager.on_error(e, initial_state)
+                raise
+            
+            status_data["stage"] = "complete"
+            status_data["status"] = "completed"
+            write_text_to_s3(bucket_name, status_key, json.dumps(status_data))
+            
+            logger.info("Campaign review orchestration completed successfully")
+            
+            if final_state.get("error"):
+                return {
+                    'statusCode': 500,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({
+                        'error': f'Campaign review failed: {final_state["error"]}',
+                        'status': 'failed',
+                        'campaign_id': campaign_id
+                    })
+                }
+            
             return {
-                'statusCode': 500,
+                'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 },
                 'body': json.dumps({
-                    'error': f'Campaign review failed: {final_state["error"]}',
-                    'status': 'failed',
-                    'campaign_id': campaign_id
+                    'message': 'Campaign review completed successfully',
+                    'status': 'completed',
+                    'campaign_id': campaign_id,
+                    'results': final_state.get("final_report", ""),
+                    'persona_review': final_state.get("persona_review", ""),
+                    'validation_report': final_state.get("validation_report", "")
                 })
             }
-        
-        # Return the orchestration results
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'message': 'Campaign review completed successfully',
-                'status': 'completed',
-                'campaign_id': campaign_id,
-                'results': final_state.get("final_report", ""),
-                'persona_review': final_state.get("persona_review", ""),
-                'validation_report': final_state.get("validation_report", "")
-            })
-        }
         
     except Exception as e:
         logger.error(f"Campaign review orchestration failed: {str(e)}", exc_info=True)

@@ -6,32 +6,30 @@ from datetime import datetime
 
 import boto3
 from botocore.exceptions import ClientError
-from strands import Agent
-from strands.models import BedrockModel
-from strands import tool
+from langchain_aws import ChatBedrock
 from utils.s3 import read_text_from_s3, write_text_to_s3
 from utils.persona_store import set_current_persona_id
 
 def get_current_campaign_id():
     """Get the current campaign ID from orchestrator"""
     try:
-        from orchestrator import get_current_campaign_id as get_id
-        return get_id()
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        # Import using importlib to avoid lambda keyword conflict
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("orchestrator", os.path.join(os.path.dirname(os.path.dirname(__file__)), "lambda", "orchestrator.py"))
+        orchestrator_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(orchestrator_module)
+        return orchestrator_module.get_current_campaign_id()
     except:
         return None
-
-def extract_campaign_id_from_content(content: str) -> str:
-    """Extract campaign ID from content if present"""
-    import re
-    match = re.search(r'CAMPAIGN_ID:\s*(\S+)', content)
-    return match.group(1) if match else None
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@tool
 def persona_reviewer_agent(
     campaign_content: str,
     campaign_id: str = None,
@@ -224,17 +222,18 @@ Remember: You are providing authentic feedback as this persona would experience 
         logger.info("Persona-based system prompt constructed successfully")
 
         # Create Bedrock model instance
-        #region = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION", "us-west-2"))
         region=os.getenv("AWS_REGION", "us-west-2")
         model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
         logger.info(f"Creating Bedrock model: {model_id}")
         
         try:
-            bedrock_model = BedrockModel(
+            bedrock_model = ChatBedrock(
                 model_id=model_id,
                 region_name=region,
-                temperature=0.7,  # Higher temperature for more authentic persona responses
-                max_tokens=4096
+                model_kwargs={
+                    "temperature": 0.7,  # Higher temperature for more authentic persona responses
+                    "max_tokens": 4096
+                }
             )
         except Exception as e:
             logger.error(f"Failed to create Bedrock model: {str(e)}")
@@ -245,25 +244,8 @@ Remember: You are providing authentic feedback as this persona would experience 
                 "persona_details": persona,
             }
 
-        # Create Agent with persona-based system prompt
-        logger.info("Creating persona reviewer agent")
-        try:
-            persona_agent = Agent(
-                model=bedrock_model,
-                system_prompt=system_prompt,
-                tools=[]
-            )
-        except Exception as e:
-            logger.error(f"Failed to create persona agent: {str(e)}")
-            return {
-                "status": "error",
-                "error": f"Failed to create persona agent: {str(e)}",
-                "execution_summary": "Failed to initialize persona reviewer agent",
-                "persona_details": persona,
-            }
-
-        # Invoke agent to generate persona-based review
-        logger.info("Invoking agent to generate persona-based review")
+        # Invoke model to generate persona-based review
+        logger.info("Invoking model to generate persona-based review")
         user_prompt = f"""Review the following campaign content from your perspective as the persona described above:
 
 <campaign_content>
@@ -273,15 +255,14 @@ Remember: You are providing authentic feedback as this persona would experience 
 Provide your honest, authentic feedback following the structured format specified in your instructions."""
 
         try:
-            response = persona_agent(user_prompt)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            response = bedrock_model.invoke(messages)
             
-            # Handle different response formats
-            if hasattr(response, 'content'):
-                response_text = response.content
-            elif hasattr(response, 'message'):
-                response_text = response.message.get('content', [{}])[0].get('text', str(response.message))
-            else:
-                response_text = str(response)
+            # Extract content from response
+            response_text = response.content if hasattr(response, 'content') else str(response)
             
             if not response_text:
                 logger.error("No text content in model response")
@@ -304,7 +285,7 @@ Provide your honest, authentic feedback following the structured format specifie
             }
 
         # Save review to S3 at campaigns/{campaign_id}/reviews/{persona_id}/campaign_review.md
-        current_campaign_id = campaign_id or extract_campaign_id_from_content(campaign_content) or get_current_campaign_id()
+        current_campaign_id = campaign_id or get_current_campaign_id()
         if current_campaign_id:
             review_s3_key = f"campaigns/{current_campaign_id}/reviews/{persona['persona_id']}/campaign_review.md"
         else:
