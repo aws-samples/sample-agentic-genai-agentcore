@@ -1,0 +1,2 @@
+# Dependencies are in the Lambda Layer (lambda/layer/requirements.txt)
+# Do not add packages here - they inflate the function zip

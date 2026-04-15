@@ -1,0 +1,8 @@
+langgraph
+langchain-aws
+langchain-core
+requests
+boto3
+bedrock-agentcore
+strands-agents[otel]>=1.18.0
+aws-opentelemetry-distro>=0.14.0
