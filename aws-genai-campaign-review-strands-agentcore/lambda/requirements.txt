@@ -1,0 +1,13 @@
+strands-agents
+strands-agents-tools
+requests
+bedrock-agentcore>=0.1.0
+bedrock-agentcore-starter-toolkit
+boto3>=1.35.0
+pydantic>=2.0.0
+opentelemetry-api
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation
+opentelemetry-sdk
+aws-opentelemetry-distro
+python-dotenv

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AWS SAM
+.aws-sam/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Logs
+*.log
+npm-debug.log*

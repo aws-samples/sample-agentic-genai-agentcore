@@ -1,0 +1,15 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "genai-campaign-agentcore"
+resolve_s3 = true
+s3_prefix = "genai-campaign-agentcore"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+resolve_image_repos = true
+
+
+
+[default.global.parameters]
+region = "us-west-2"

@@ -1,0 +1,467 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Unified Campaign Review System - Agent API + Frontend
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
+Resources:
+  # Unified S3 Bucket for all content
+  UnifiedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # Frontend S3 Bucket
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+
+  # Origin Access Control for CloudFront
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  # S3 Bucket Policy for CloudFront OAC
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${FrontendBucket}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceArn": !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  # HTTP API Gateway for frontend functions
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        MaxAge: 600
+
+  # AgentCore deployment Lambda
+  DeployAgentCoreFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: deploy-agentcore
+      PackageType: Image
+      ImageUri: deploy-agentcore:latest
+      Timeout: 900  # 15 minutes for deployment
+      MemorySize: 2048  # Need more memory for Docker operations
+      Environment:
+        Variables:
+          CAMPAIGN_BUCKET: !Ref UnifiedBucket
+      Policies:
+        - Statement:
+            # Bedrock Agent Core access
+            - Sid: BedrockAgentCoreAccess
+              Effect: Allow
+              Action:
+                - bedrock-agentcore:*
+                - bedrock-agentcore-control:*
+              Resource: "*"
+            
+            # IAM Role Management
+            - Sid: IAMRoleManagement
+              Effect: Allow
+              Action:
+                - iam:CreateRole
+                - iam:DeleteRole
+                - iam:GetRole
+                - iam:PutRolePolicy
+                - iam:DeleteRolePolicy
+                - iam:AttachRolePolicy
+                - iam:DetachRolePolicy
+                - iam:TagRole
+                - iam:ListRolePolicies
+                - iam:ListAttachedRolePolicies
+              Resource:
+                - "arn:aws:iam::*:role/*BedrockAgentCore*"
+                - "arn:aws:iam::*:role/service-role/*BedrockAgentCore*"
+            
+            # IAM List Roles (needed to find execution role with random suffix)
+            - Sid: IAMListRoles
+              Effect: Allow
+              Action:
+                - iam:ListRoles
+              Resource: "*"
+            
+            # IAM Service Linked Role (required by Bedrock Agent Core)
+            - Sid: IAMServiceLinkedRole
+              Effect: Allow
+              Action:
+                - iam:CreateServiceLinkedRole
+                - iam:DeleteServiceLinkedRole
+                - iam:GetServiceLinkedRoleDeletionStatus
+              Resource: 
+                - "arn:aws:iam::*:role/aws-service-role/bedrock-agentcore.amazonaws.com/*"
+                - "arn:aws:iam::*:role/aws-service-role/*.amazonaws.com/*"
+            
+            # IAM PassRole
+            - Sid: IAMPassRoleAccess
+              Effect: Allow
+              Action:
+                - iam:PassRole
+              Resource:
+                - "arn:aws:iam::*:role/AmazonBedrockAgentCore*"
+                - "arn:aws:iam::*:role/service-role/AmazonBedrockAgentCore*"
+            
+            # CodeBuild Project Access
+            - Sid: CodeBuildProjectAccess
+              Effect: Allow
+              Action:
+                - codebuild:StartBuild
+                - codebuild:BatchGetBuilds
+                - codebuild:ListBuildsForProject
+                - codebuild:CreateProject
+                - codebuild:UpdateProject
+                - codebuild:BatchGetProjects
+              Resource:
+                - "arn:aws:codebuild:*:*:project/bedrock-agentcore-*"
+                - "arn:aws:codebuild:*:*:build/bedrock-agentcore-*"
+            
+            # CodeBuild List Access
+            - Sid: CodeBuildListAccess
+              Effect: Allow
+              Action:
+                - codebuild:ListProjects
+              Resource: "*"
+            
+            # CloudWatch Logs Access
+            - Sid: CloudWatchLogsAccess
+              Effect: Allow
+              Action:
+                - logs:GetLogEvents
+                - logs:DescribeLogGroups
+                - logs:DescribeLogStreams
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                - logs:PutDeliverySource
+                - logs:PutDeliveryDestination
+                - logs:CreateDelivery
+                - logs:GetDeliverySource
+                - logs:GetDeliveryDestination
+                - logs:DescribeDeliveries
+                - logs:DescribeDeliveryDestinations
+                - logs:DescribeDeliverySources
+                - logs:PutRetentionPolicy
+                - logs:DeleteRetentionPolicy
+              Resource:
+                - "arn:aws:logs:*:*:log-group:/aws/bedrock-agentcore/*"
+                - "arn:aws:logs:*:*:log-group:/aws/codebuild/*"
+                - "arn:aws:logs:*:*:log-group:/aws/lambda/deploy-agentcore:*"
+                - "arn:aws:logs:*:*:log-group:aws/spans:*"
+                - "arn:aws:logs:*:*:delivery-source:*"
+                - "arn:aws:logs:*:*:delivery-destination:*"
+                - "arn:aws:logs:*:*:delivery:*"
+            
+            # CloudWatch Logs Resource Policy (needs wildcard resource)
+            - Sid: CloudWatchLogsResourcePolicy
+              Effect: Allow
+              Action:
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+              Resource: "*"
+            
+            # X-Ray Tracing (for Agent Core observability)
+            - Sid: XRayTracingAccess
+              Effect: Allow
+              Action:
+                - xray:*
+              Resource: "*"
+            
+            # CloudWatch Application Signals (for Agent Core observability)
+            - Sid: ApplicationSignalsAccess
+              Effect: Allow
+              Action:
+                - application-signals:*
+              Resource: "*"
+            
+            # CloudTrail (for Application Signals transaction search)
+            - Sid: CloudTrailAccess
+              Effect: Allow
+              Action:
+                - cloudtrail:CreateServiceLinkedChannel
+                - cloudtrail:DeleteServiceLinkedChannel
+                - cloudtrail:GetServiceLinkedChannel
+                - cloudtrail:UpdateServiceLinkedChannel
+              Resource: "*"
+            
+            # S3 Access
+            - Sid: S3Access
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:ListBucket
+                - s3:CreateBucket
+                - s3:PutLifecycleConfiguration
+              Resource:
+                - "arn:aws:s3:::bedrock-agentcore-*"
+                - "arn:aws:s3:::bedrock-agentcore-*/*"
+                - !Sub "arn:aws:s3:::${UnifiedBucket}"
+                - !Sub "arn:aws:s3:::${UnifiedBucket}/*"
+            
+            # ECR Repository Access
+            - Sid: ECRRepositoryAccess
+              Effect: Allow
+              Action:
+                - ecr:CreateRepository
+                - ecr:DescribeRepositories
+                - ecr:GetRepositoryPolicy
+                - ecr:InitiateLayerUpload
+                - ecr:CompleteLayerUpload
+                - ecr:PutImage
+                - ecr:UploadLayerPart
+                - ecr:BatchCheckLayerAvailability
+                - ecr:GetDownloadUrlForLayer
+                - ecr:BatchGetImage
+                - ecr:ListImages
+                - ecr:TagResource
+              Resource:
+                - "arn:aws:ecr:*:*:repository/bedrock-agentcore-*"
+            
+            # ECR Authorization
+            - Sid: ECRAuthorizationAccess
+              Effect: Allow
+              Action:
+                - ecr:GetAuthorizationToken
+              Resource: "*"
+            
+            # SSM Parameter Store (write Agent ARN after deployment)
+            - Sid: SSMWriteAgentArn
+              Effect: Allow
+              Action:
+                - ssm:PutParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore/campaign-review/agent-arn"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /deploy-agent
+            Method: post
+    Metadata:
+      Dockerfile: Dockerfile.deploy
+      DockerContext: .
+
+  # Upload Lambda Function
+  UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/upload/
+      Handler: index.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref UnifiedBucket
+          S3_REGION: !Ref AWS::Region
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UnifiedBucket
+      Events:
+        Upload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /upload
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+          - index.js
+
+  # Reviews Lambda Function
+  ReviewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/reviews/
+      Handler: index.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref UnifiedBucket
+          S3_REGION: !Ref AWS::Region
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UnifiedBucket
+      Events:
+        GetReviews:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reviews
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+          - index.mjs
+
+  # Health Check Lambda Function
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/health/
+      Handler: index.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        EntryPoints: 
+          - index.mjs
+
+  # SSM Parameter for Agent ARN (written by DeployAgentCoreFunction after deployment)
+  AgentArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /agentcore/campaign-review/agent-arn
+      Type: String
+      Value: PLACEHOLDER
+      Description: Agent Core Runtime ARN for campaign review agent
+
+  # Review Campaign Lambda - thin proxy that invokes AgentCore asynchronously
+  ReviewCampaignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: review-campaign
+      CodeUri: lambda/review_campaign/
+      Handler: handler.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          AGENT_ARN_PARAM: /agentcore/campaign-review/agent-arn
+          CAMPAIGN_BUCKET: !Ref UnifiedBucket
+      Policies:
+        - Statement:
+            - Sid: SSMRead
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore/campaign-review/agent-arn"
+            - Sid: LambdaSelfInvoke
+              Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:review-campaign"
+            - Sid: AgentCoreInvoke
+              Effect: Allow
+              Action:
+                - bedrock-agentcore:InvokeAgentRuntime
+              Resource: "*"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /review-campaign
+            Method: post
+
+Outputs:
+  DeployAgentApiEndpoint:
+    Description: "API Gateway endpoint for deploying Agent Core Runtime"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deploy-agent"
+  CampaignOrchestratorApi:
+    Description: "API Gateway endpoint URL for Campaign Orchestrator function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/review-campaign/"
+  ApiEndpoint:
+    Description: "HTTP API Gateway endpoint URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  CloudFrontURL:
+    Description: "CloudFront Distribution URL"
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+  FrontendBucket:
+    Description: "S3 Bucket for Frontend"
+    Value: !Ref FrontendBucket
+  UnifiedBucket:
+    Description: "Unified S3 Bucket for Campaign Data and Reviews"
+    Value: !Ref UnifiedBucket
