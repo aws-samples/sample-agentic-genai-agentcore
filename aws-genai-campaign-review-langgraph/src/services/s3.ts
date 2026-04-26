@@ -70,7 +70,7 @@ export const uploadFileToS3 = async (file: File, campaignId?: string): Promise<U
  * @returns The full S3 URL
  */
 export const getS3Url = (key: string): string => {
-  return `https://blogs-s3-akshay.s3.us-east-1.amazonaws.com/${key}`;
+  return `https://your-bucket.s3.us-west-2.amazonaws.com/${key}`;
 };
 
 // Backend API endpoint for fetching reviews

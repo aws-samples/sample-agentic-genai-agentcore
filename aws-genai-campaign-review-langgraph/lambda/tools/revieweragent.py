@@ -33,7 +33,7 @@ logger.setLevel(logging.INFO)
 def persona_reviewer_agent(
     campaign_content: str,
     campaign_id: str = None,
-    franchise: str = "EA Sports FC",
+    franchise: str = "Acme Sports FC",
     franchise_type: str = "Sports",
     version: str = "v1"
 ) -> Dict[str, Any]:
@@ -42,7 +42,7 @@ def persona_reviewer_agent(
 
     Args:
         campaign_content: The campaign content to review
-        franchise: Franchise name (e.g., "FIFA", "Madden")
+        franchise: Franchise name (e.g., "Striker", "Gridiron")
         franchise_type: "Sports" or "Entertainment"
         version: Draft version (e.g., "v0", "v1")
 

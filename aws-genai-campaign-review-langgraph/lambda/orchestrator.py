@@ -3,7 +3,7 @@
 # 🎯 Ad Campaign Review Orchestrator Agent
 
 A LangGraph-based orchestrator that coordinates persona-based review, compliance validation, 
-and final synthesis for EA ad campaigns.
+and final synthesis for ad campaigns.
 
 ## What This Example Shows
 This orchestrator coordinates three specialized agents:
@@ -96,7 +96,7 @@ class CampaignState(TypedDict):
 
 # Define the orchestrator system prompt for ad campaign review
 CAMPAIGN_ORCHESTRATOR_PROMPT = """
-You are the EA Campaign Review Orchestrator, responsible for coordinating comprehensive review of advertising campaigns for Electronic Arts gaming franchises. Your role is to manage the end-to-end review process that ensures campaigns are both authentic to target audiences and compliant with corporate standards.
+You are the Campaign Review Orchestrator, responsible for coordinating comprehensive review of advertising campaigns for gaming franchises. Your role is to manage the end-to-end review process that ensures campaigns are both authentic to target audiences and compliant with corporate standards.
 
 # Your Mission
 Orchestrate a multi-stage review process for ad campaigns that:
@@ -125,7 +125,7 @@ The workflow follows this sequence:
    - Generate final campaign content that incorporates these findings
 
 # Campaign Context
-You are currently reviewing ad campaigns for EA's gaming franchises, with a focus on new sneaker product launches that require authentic audience connection while maintaining EA's brand standards and legal compliance.
+You are currently reviewing ad campaigns for gaming franchises, with a focus on new sneaker product launches that require authentic audience connection while maintaining brand standards and legal compliance.
 
 # Response Format
 Always provide:
@@ -148,7 +148,7 @@ def persona_review_node(state: CampaignState) -> CampaignState:
         result = persona_reviewer_agent(
             campaign_content=state["campaign_content"],
             campaign_id=state.get("campaign_id"),
-            franchise=state.get("franchise", "EA Sports FC"),
+            franchise=state.get("franchise", "Acme Sports FC"),
             franchise_type=state.get("franchise_type", "Sports"),
             version=state.get("version", "v1")
         )
@@ -173,7 +173,7 @@ def validation_node(state: CampaignState) -> CampaignState:
         result = validator_agent(
             campaign_content=state["campaign_content"],
             campaign_id=state.get("campaign_id"),
-            franchise=state.get("franchise", "EA Sports FC"),
+            franchise=state.get("franchise", "Acme Sports FC"),
             franchise_type=state.get("franchise_type", "Sports"),
             version=state.get("version", "v1")
         )
@@ -206,7 +206,7 @@ def finalizer_node(state: CampaignState) -> CampaignState:
             persona_review=state["persona_review"],
             validation_report=state["validation_report"],
             campaign_id=state.get("campaign_id"),
-            franchise=state.get("franchise", "EA Sports FC"),
+            franchise=state.get("franchise", "Acme Sports FC"),
             franchise_type=state.get("franchise_type", "Sports"),
             version=state.get("version", "v1")
         )
@@ -463,7 +463,7 @@ def lambda_handler(event, context):
             initial_state = {
                 "campaign_content": campaign_prompt,
                 "campaign_id": campaign_id,
-                "franchise": "EA Sports FC",
+                "franchise": "Acme Sports FC",
                 "franchise_type": "Sports",
                 "version": "v1",
                 "persona_review": "",
@@ -537,13 +537,13 @@ def lambda_handler(event, context):
             LOGGER.info(f"Session context detached")
 
 if __name__ == "__main__":
-    print("\n🎯 EA Campaign Review Orchestrator 🎯\n")
+    print("\n🎯 Campaign Review Orchestrator 🎯\n")
     print("Orchestrating comprehensive ad campaign review...")
     print("This will coordinate persona feedback, compliance validation, and final synthesis.")
     
     # Demo execution
     demo_event = {
-        'franchise': 'EA Sports FC',
+        'franchise': 'Acme Sports FC',
         'franchise_type': 'Sports',
         'version': 'v1'
     }

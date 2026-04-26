@@ -32,7 +32,7 @@ def finalizer_agent(
     persona_review: str,
     validation_report: str,
     campaign_id: str = None,
-    franchise: str = "EA Sports FC",
+    franchise: str = "Acme Sports FC",
     franchise_type: str = "Sports",
     version: str = "v1"
 ) -> Dict[str, Any]:
@@ -43,7 +43,7 @@ def finalizer_agent(
         campaign_content: The original campaign content
         persona_review: The persona-based review results
         validation_report: The compliance validation results
-        franchise: Franchise name (e.g., "FIFA", "Madden")
+        franchise: Franchise name (e.g., "Striker", "Gridiron")
         franchise_type: "Sports" or "Entertainment"
         version: Draft version (e.g., "v0", "v1")
 
@@ -66,7 +66,7 @@ def finalizer_agent(
         logger.info(f"=" * 80)
 
         # System prompt for synthesizing feedback
-        system_prompt = f"""You are a Senior Marketing Strategy Finalizer for Electronic Arts (EA). Your role is to synthesize persona-based feedback and compliance validation into actionable final recommendations for ad campaign optimization.
+        system_prompt = f"""You are a Senior Marketing Strategy Finalizer for Acme Games. Your role is to synthesize persona-based feedback and compliance validation into actionable final recommendations for ad campaign optimization.
 
 # Your Expertise
 You excel at:
@@ -92,7 +92,7 @@ Generate a finalized campaign content that updates the original campaign content
 - Optional enhancements that could strengthen the campaign
 
 **Provides Strategic Context:**
-- How recommendations align with EA's broader marketing objectives
+- How recommendations align with Acme Games' broader marketing objectives
 - Potential impact on campaign performance and brand perception
 - Implementation complexity and resource requirements
 - Success metrics and evaluation criteria
@@ -198,7 +198,7 @@ Generate an updated campaign that incorporates content from all sections above -
 {validation_report}
 </validation_report>
 
-Provide your comprehensive synthesis following the structured format specified in your instructions. Focus on updating the original content from the persona and validation reviews with the goal to balance audience authenticity with compliance requirements while maximizing campaign effectiveness for EA."""
+Provide your comprehensive synthesis following the structured format specified in your instructions. Focus on updating the original content from the persona and validation reviews with the goal to balance audience authenticity with compliance requirements while maximizing campaign effectiveness."""
 
         try:
             messages = [

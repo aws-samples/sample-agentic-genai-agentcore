@@ -1,4 +1,4 @@
-const API_ENDPOINT = 'https://fva2j4njf7.execute-api.us-west-2.amazonaws.com/Prod/review-campaign/';
+const API_ENDPOINT = import.meta.env.VITE_AGENT_API_URL || 'https://your-api-id.execute-api.us-west-2.amazonaws.com/Prod/review-campaign/';
 
 export const submitCampaignReview = async (campaignData: string) => {
   const controller = new AbortController();

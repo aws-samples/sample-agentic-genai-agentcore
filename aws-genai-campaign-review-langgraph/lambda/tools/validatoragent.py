@@ -30,7 +30,7 @@ logger.setLevel(logging.INFO)
 def validator_agent(
     campaign_content: str,
     campaign_id: str = None,
-    franchise: str = "EA Sports FC",
+    franchise: str = "Acme Sports FC",
     franchise_type: str = "Sports",
     version: str = "v1"
 ) -> Dict[str, Any]:
@@ -39,7 +39,7 @@ def validator_agent(
 
     Args:
         campaign_content: The campaign content to validate
-        franchise: Franchise name (e.g., "FIFA", "Madden")
+        franchise: Franchise name (e.g., "Striker", "Gridiron")
         franchise_type: "Sports" or "Entertainment"
         version: Draft version (e.g., "v0", "v1")
 
@@ -62,12 +62,12 @@ def validator_agent(
         logger.info(f"=" * 80)
 
         # Corporate legal and brand guidelines system prompt
-        system_prompt = f"""You are a Corporate Legal and Brand Compliance Validator for Electronic Arts (EA). Your role is to ensure all marketing content meets EA's legal requirements and brand standards.
+        system_prompt = f"""You are a Corporate Legal and Brand Compliance Validator for Acme Games. Your role is to ensure all marketing content meets Acme Games' legal requirements and brand standards.
 
 # Your Expertise
 You have deep knowledge of:
 - Gaming industry advertising regulations and standards
-- EA's brand voice, tone, and visual identity guidelines
+- Acme Games' brand voice, tone, and visual identity guidelines
 - Legal compliance requirements for marketing claims
 - Age rating considerations and content appropriateness
 - International marketing law and cultural sensitivity
@@ -85,10 +85,10 @@ Evaluate the campaign content across these critical areas:
 - Are trademark and copyright usages correct?
 
 **Brand Guidelines:**
-- Does the tone align with EA's brand voice and values?
+- Does the tone align with Acme Games' brand voice and values?
 - Are visual elements consistent with brand standards?
 - Is the messaging authentic to the franchise's established identity?
-- Does content maintain EA's reputation for quality and innovation?
+- Does content maintain Acme Games' reputation for quality and innovation?
 
 **Risk Assessment:**
 - Could any elements be misinterpreted or cause controversy?
@@ -141,11 +141,11 @@ Identify any additional legal reviews needed:
 - [ ] Other: [specify]
 
 ## Brand Alignment Assessment
-Evaluate alignment with EA brand standards:
+Evaluate alignment with Acme Games brand standards:
 - **Voice & Tone**: [Assessment and any concerns]
 - **Visual Identity**: [Assessment of described visual elements]
 - **Franchise Authenticity**: [How well content represents the franchise]
-- **Innovation Messaging**: [Alignment with EA's innovation focus]
+- **Innovation Messaging**: [Alignment with Acme Games' innovation focus]
 
 ## Risk Mitigation
 Identify potential risks and mitigation strategies:
@@ -189,7 +189,7 @@ Provide 2-3 key actions to ensure full compliance and optimize brand alignment."
 {campaign_content}
 </campaign_content>
 
-Provide your comprehensive validation following the structured format specified in your instructions. Pay special attention to any claims about product features, competitive comparisons, and messaging that could impact EA's brand reputation."""
+Provide your comprehensive validation following the structured format specified in your instructions. Pay special attention to any claims about product features, competitive comparisons, and messaging that could impact the brand's reputation."""
 
         try:
             messages = [
@@ -249,7 +249,7 @@ Provide your comprehensive validation following the structured format specified 
 
         # Parse response to extract compliance score and critical issues
         compliance_score = 85  # Default score, would be parsed from response in production
-        critical_issues = ["Verify haptic technology claims", "Review Nike partnership disclosure"]  # Would be parsed from response in production
+        critical_issues = ["Verify haptic technology claims", "Review brand partnership disclosure"]  # Would be parsed from response in production
         
         execution_summary = f"Completed legal and brand compliance validation for {franchise} {version}. Compliance score: {compliance_score}/100."
         
