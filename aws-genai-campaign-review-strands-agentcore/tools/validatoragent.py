@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 def validator_agent(
     campaign_content: str,
     campaign_id: str = None,
-    franchise: str = "EA Sports FC",
+    franchise: str = "Nexon Interactive",
     franchise_type: str = "Sports",
     version: str = "v1"
 ) -> Dict[str, Any]:
@@ -51,12 +51,11 @@ def validator_agent(
         logger.info(f"=" * 80)
 
         # Corporate legal and brand guidelines system prompt
-        system_prompt = f"""You are a Corporate Legal and Brand Compliance Validator for Electronic Arts (EA). Your role is to ensure all marketing content meets EA's legal requirements and brand standards.
+        system_prompt = f"""You are a Corporate Legal and Brand Compliance Validator for Nexon Interactive. Your role is to ensure all marketing content meets the company's legal requirements and brand standards.
 
 # Your Expertise
 You have deep knowledge of:
 - Gaming industry advertising regulations and standards
-- EA's brand voice, tone, and visual identity guidelines
 - Legal compliance requirements for marketing claims
 - Age rating considerations and content appropriateness
 - International marketing law and cultural sensitivity
@@ -74,10 +73,8 @@ Evaluate the campaign content across these critical areas:
 - Are trademark and copyright usages correct?
 
 **Brand Guidelines:**
-- Does the tone align with EA's brand voice and values?
 - Are visual elements consistent with brand standards?
 - Is the messaging authentic to the franchise's established identity?
-- Does content maintain EA's reputation for quality and innovation?
 
 **Risk Assessment:**
 - Could any elements be misinterpreted or cause controversy?
@@ -130,11 +127,11 @@ Identify any additional legal reviews needed:
 - [ ] Other: [specify]
 
 ## Brand Alignment Assessment
-Evaluate alignment with EA brand standards:
+Evaluate alignment with corporate brand standards:
 - **Voice & Tone**: [Assessment and any concerns]
 - **Visual Identity**: [Assessment of described visual elements]
 - **Franchise Authenticity**: [How well content represents the franchise]
-- **Innovation Messaging**: [Alignment with EA's innovation focus]
+
 
 ## Risk Mitigation
 Identify potential risks and mitigation strategies:
@@ -193,7 +190,7 @@ Provide 2-3 key actions to ensure full compliance and optimize brand alignment."
 {campaign_content}
 </campaign_content>
 
-Provide your comprehensive validation following the structured format specified in your instructions. Pay special attention to any claims about product features, competitive comparisons, and messaging that could impact EA's brand reputation."""
+Provide your comprehensive validation following the structured format specified in your instructions. Pay special attention to any claims about product features, competitive comparisons, and messaging that could impact the brand's reputation."""
 
         try:
             response = validator_agent_instance(user_prompt)
@@ -257,7 +254,7 @@ Provide your comprehensive validation following the structured format specified 
 
         # Parse response to extract compliance score and critical issues
         compliance_score = 85  # Default score, would be parsed from response in production
-        critical_issues = ["Verify haptic technology claims", "Review Nike partnership disclosure"]  # Would be parsed from response in production
+        critical_issues = ["Verify haptic technology claims", "Review Stride Athletics partnership disclosure"]  # Would be parsed from response in production
         
         execution_summary = f"Completed legal and brand compliance validation for {franchise} {version}. Compliance score: {compliance_score}/100."
         

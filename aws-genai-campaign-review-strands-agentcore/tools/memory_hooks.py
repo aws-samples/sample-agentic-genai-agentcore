@@ -1,5 +1,5 @@
 """
-Memory hooks for Nike Supply Chain Agent.
+Memory hooks for Campaign Review Agent.
 """
 import logging
 import json

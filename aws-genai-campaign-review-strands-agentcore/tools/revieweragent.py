@@ -22,7 +22,7 @@ logger.setLevel(logging.INFO)
 def persona_reviewer_agent(
     campaign_content: str,
     campaign_id: str = None,
-    franchise: str = "EA Sports FC",
+    franchise: str = "Nexon Interactive",
     franchise_type: str = "Sports",
     version: str = "v1"
 ) -> Dict[str, Any]:

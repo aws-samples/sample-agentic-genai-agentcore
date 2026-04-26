@@ -3,7 +3,7 @@
 # 🎯 Ad Campaign Review Orchestrator Agent
 
 A specialized Strands agent that orchestrates persona-based review, compliance validation, 
-and final synthesis for EA ad campaigns.
+and final synthesis for ad campaigns.
 
 ## What This Example Shows
 This orchestrator coordinates three specialized agents:
@@ -45,7 +45,7 @@ logger.setLevel(logging.INFO)
 
 # Define the orchestrator system prompt for ad campaign review
 CAMPAIGN_ORCHESTRATOR_PROMPT = """
-You are the EA Campaign Review Orchestrator, responsible for coordinating comprehensive review of advertising campaigns for Electronic Arts gaming franchises. Your role is to manage the end-to-end review process that ensures campaigns are both authentic to target audiences and compliant with corporate standards.
+You are the Campaign Review Orchestrator, responsible for coordinating comprehensive review of advertising campaigns for Nexon Interactive gaming franchises. Your role is to manage the end-to-end review process that ensures campaigns are both authentic to target audiences and compliant with corporate standards.
 
 # Your Mission
 Orchestrate a multi-stage review process for ad campaigns that:
@@ -96,7 +96,7 @@ When reviewing an ad campaign, follow this sequence:
 
 
 # Campaign Context
-You are currently reviewing ad campaigns for EA's gaming franchises, with a focus on new sneaker product launches that require authentic audience connection while maintaining EA's brand standards and legal compliance.
+You are currently reviewing ad campaigns for Nexon Interactive's gaming franchises, with a focus on new sneaker product launches that require authentic audience connection while maintaining brand standards and legal compliance.
 
 # Response Format
 Always provide:
