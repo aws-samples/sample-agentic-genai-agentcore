@@ -1,0 +1,23 @@
+# Dockerfile for deploy_agentcore Lambda function
+# This Lambda uses the starter toolkit to deploy agent.py to Agent Core Runtime
+# Note: The toolkit will generate a separate Dockerfile for the agent runtime
+
+FROM public.ecr.aws/lambda/python:3.12
+
+# Install uv for faster package installation (optional)
+RUN pip install uv
+
+# Copy and install deployment Lambda dependencies using uv for speed
+COPY lambda/requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
+RUN uv pip install --system -r ${LAMBDA_TASK_ROOT}/requirements.txt
+
+# Copy the deployment Lambda function
+COPY lambda/deploy_agentcore.py ${LAMBDA_TASK_ROOT}/
+
+# Copy agent files (toolkit will use these to build agent image)
+COPY agent.py ${LAMBDA_TASK_ROOT}/
+COPY tools/ ${LAMBDA_TASK_ROOT}/tools/
+COPY utils/ ${LAMBDA_TASK_ROOT}/utils/
+
+# Set the CMD to the deployment Lambda handler
+CMD ["deploy_agentcore.lambda_handler"]
