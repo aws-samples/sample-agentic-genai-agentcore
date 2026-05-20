@@ -18,7 +18,16 @@ import json
 import logging
 from datetime import datetime
 from strands import Agent
-from strands.models import BedrockModel
+from strands.models.openai import OpenAIModel
+
+
+class ForcedToolOpenAIModel(OpenAIModel):
+    """OpenAIModel that forces tool_choice='required' for reliable tool calling with vLLM."""
+
+    @classmethod
+    def _format_request_tool_choice(cls, tool_choice=None):
+        return {"tool_choice": "required"}
+
 from tools.revieweragent import persona_reviewer_agent
 from tools.validatoragent import validator_agent
 from tools.finalizeragent import finalizer_agent
@@ -110,16 +119,17 @@ Remember: Your goal is to ensure campaigns resonate authentically with target au
 def create_campaign_orchestrator(trace_id: str = None, session_id: str = None, actor_id: str = None) -> Agent:
     """Create the campaign review orchestrator agent"""
     
-    # Create Bedrock model for orchestrator
-    region=os.getenv("AWS_REGION", "us-west-2")
-    #region = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION", "us-west-2"))
-    model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-    
-    bedrock_model = BedrockModel(
-        model_id=model_id,
-        region_name=region,
-        temperature=0.5,
-        max_tokens=4096
+    # Create OpenAI-compatible model pointing to NVIDIA NIMs endpoint
+    openai_model = ForcedToolOpenAIModel(
+        client_args={
+            "base_url": os.getenv("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+            "api_key": os.getenv("OPENAI_API_KEY"),
+        },
+        model_id="openai/gpt-oss-120b",
+        params={
+            "max_tokens": 4096,
+            "temperature": 0.5,
+        },
     )    
     
     # Create memory hook if memory is initialized
@@ -129,7 +139,7 @@ def create_campaign_orchestrator(trace_id: str = None, session_id: str = None, a
 
     # Create orchestrator agent with all tools
     orchestrator = Agent(
-        model=bedrock_model,
+        model=openai_model,
         system_prompt=CAMPAIGN_ORCHESTRATOR_PROMPT,
         tools=[persona_reviewer_agent, validator_agent, finalizer_agent],
         hooks=hooks,

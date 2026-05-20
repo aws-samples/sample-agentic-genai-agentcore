@@ -36,6 +36,31 @@ aws sts get-caller-identity
 2. Go to **Model access** → **Manage model access**
 3. Select **Claude Sonnet 4.5** (Anthropic) → **Request model access**
 
+## Step 2b: Configure NVIDIA NIMs (AI Model Provider)
+
+The AI agents use [NVIDIA NIMs](https://build.nvidia.com) via an OpenAI-compatible API for inference. The orchestrator and sub-agents use `gpt-oss-120b` for tool calling and content generation.
+
+1. Go to [NVIDIA Build](https://build.nvidia.com) and create an account
+2. Navigate to **GPT-OSS-120B** model and generate an API key
+3. Add the key to your `.env` file:
+
+```bash
+# Copy the example env file
+cp .env.example .env
+
+# Edit with your NVIDIA API key
+OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1
+OPENAI_API_KEY=nvapi-your-key-here
+```
+
+Verify the endpoint is working:
+```bash
+curl -s -X POST 'https://integrate.api.nvidia.com/v1/chat/completions' \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"Hello"}],"max_tokens":50}' | python3 -m json.tool
+```
+
 ## Step 3: Set Up DynamoDB Persona Table
 
 ```bash

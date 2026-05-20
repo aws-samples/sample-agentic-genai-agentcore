@@ -1,8 +1,0 @@
-{
-  "name": "reviews-lambda",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.0.0"
-  }
-}
