@@ -1,0 +1,6 @@
+strands-agents
+strands-agents-tools
+pydantic
+mcp
+boto3
+bedrock-agentcore

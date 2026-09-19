@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing evidence attribution in AI agent responses. Evaluate whether the agent cited the specific data fields, API responses, or query results that support its claims.\n\n## Input Context\n\nAgent Response:\n{assistant_turn}\n\nTool Outputs and Data Context:\n{context}\n\n## Evaluation Criteria\n\n### Source Citation\n- Does the agent explicitly reference which tool or API provided the data (e.g., \"According to the optimization API...\", \"The routing data shows...\")?\n- Are specific field names or values cited (e.g., \"demand_forecast: 1200 units\", \"carrier: FastShip Express at $45\")?\n- Can a reader trace each claim back to a specific data source?\n\n### Data Accuracy\n- Are the cited values accurate (matching what the tool actually returned)?\n- Are numbers quoted correctly without rounding errors or fabrication?\n- If the agent summarizes multiple data points, is the summary faithful to the source?\n\n### Attribution Completeness\n- Are ALL factual claims in the response attributed to a data source?\n- Are there any unsupported assertions (claims without evidence)?\n- Does the agent distinguish between data-backed claims and its own inference/analysis?\n\n## Scoring Rules\n- Very Good: Every factual claim is explicitly attributed to a specific data source with correct values cited\n- Good: Most claims are attributed with correct values; minor claims may lack explicit citation\n- OK: Some attribution present but inconsistent — key claims are supported but others are stated without evidence\n- Poor: Minimal attribution — agent makes claims without citing sources; hard to verify accuracy\n- Very Poor: No attribution — response presents conclusions without any reference to tool outputs or data",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Every factual claim is explicitly attributed to a specific data source (API, query result, tool output) with correct values cited. Reader can trace all claims to evidence."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Most claims are attributed with correct values. Minor claims may lack explicit citation but key assertions are well-supported."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Some attribution present but inconsistent. Key claims are supported but other assertions are stated without evidence or source reference."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Minimal attribution. Agent makes claims without citing sources. Hard to verify accuracy or trace conclusions to data."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No attribution. Response presents conclusions without any reference to tool outputs, API responses, or query results."
+                }
+            ]
+        }
+    }
+}

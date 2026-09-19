@@ -1,0 +1,32 @@
+{
+  "telemetry": {
+    "lastWorkflowStatus": {
+      "spec-generation": {
+        "task_statuses": {
+          "session": {
+            "status": "not_started",
+            "name": "Project Setup"
+          },
+          "security": {
+            "status": "not_started",
+            "name": "Security Assessment"
+          },
+          "finalize": {
+            "status": "not_started",
+            "name": "Finalize"
+          }
+        },
+        "last_sent": "2026-07-01T20:17:42.300Z"
+      },
+      "coding": {
+        "task_statuses": {
+          "undefined": {
+            "status": "not_started",
+            "name": "Project Setup"
+          }
+        },
+        "last_sent": "2026-07-01T20:17:42.301Z"
+      }
+    }
+  }
+}

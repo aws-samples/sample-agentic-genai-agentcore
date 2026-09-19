@@ -1,0 +1,230 @@
+:root {
+    --primary-color: #0972d3;
+    --border-color: #e5e7eb;
+    --code-bg: #1e1e1e;
+    --code-text: #d4d4d4;
+    --text-color: #1f2937;
+    --surface-color: #ffffff;
+    --blockquote-bg: #f8fafc;
+    --table-header-bg: #f3f4f6;
+    --table-stripe-bg: #f9fafb;
+    --inline-code-bg: #f1f5f9;
+    --inline-code-color: #be185d;
+    --hr-color: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.7;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+    color: var(--text-color);
+    background: var(--surface-color);
+    transition: background 0.2s, color 0.2s;
+}
+
+/* Dark mode */
+body.dark {
+    --primary-color: #539fe5;
+    --border-color: #2a3a4e;
+    --code-bg: #0d1117;
+    --code-text: #d4d4d4;
+    --text-color: #d1d5db;
+    --surface-color: #111927;
+    --blockquote-bg: #1a2536;
+    --table-header-bg: #1a2536;
+    --table-stripe-bg: #151f2e;
+    --inline-code-bg: #1a2536;
+    --inline-code-color: #f472b6;
+    --hr-color: #2a3a4e;
+}
+
+h1 { font-size: 2.25em; margin: 0 0 16px 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; }
+h2 { font-size: 1.75em; margin: 32px 0 16px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+h3 { font-size: 1.4em; margin: 24px 0 12px 0; }
+h4 { font-size: 1.15em; margin: 20px 0 10px 0; }
+p { margin: 0 0 16px 0; }
+a { color: var(--primary-color); }
+ul, ol { margin: 0 0 16px 0; padding-left: 24px; }
+li { margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0 24px 0; }
+th, td { padding: 12px 16px; border: 1px solid var(--border-color); text-align: left; }
+th { background: var(--table-header-bg); font-weight: 600; }
+tr:nth-child(even) { background: var(--table-stripe-bg); }
+code { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.9em; background: var(--inline-code-bg); padding: 2px 6px; border-radius: 4px; color: var(--inline-code-color); }
+pre { background: var(--code-bg); color: var(--code-text); padding: 16px 20px; border-radius: 8px; overflow-x: auto; margin: 16px 0 24px 0; }
+pre code { background: none; padding: 0; color: inherit; }
+pre.mermaid { background: var(--surface-color); text-align: center; padding: 24px; border: 1px solid var(--border-color); }
+blockquote { margin: 16px 0; padding: 12px 20px; border-left: 4px solid var(--primary-color); background: var(--blockquote-bg); }
+hr { border: none; border-top: 1px solid var(--hr-color); margin: 32px 0; }
+
+/* Heading highlight flash when navigated via outline */
+:root {
+    --flash-color: rgba(9, 114, 211, 0.25);
+    --flash-color-mid: rgba(9, 114, 211, 0.12);
+}
+body.dark {
+    --flash-color: rgba(83, 159, 229, 0.3);
+    --flash-color-mid: rgba(83, 159, 229, 0.15);
+}
+@keyframes heading-flash {
+    0%   { background-color: var(--flash-color); }
+    60%  { background-color: var(--flash-color-mid); }
+    100% { background-color: transparent; }
+}
+.heading-highlight {
+    animation: heading-flash 1.8s ease-out;
+    border-radius: 4px;
+    padding-left: 8px;
+    margin-left: -8px;
+}
+
+/* Page layout with outline panel */
+.page-layout {
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+}
+.page-content {
+    flex: 1;
+    min-width: 0;
+    max-width: 960px;
+    padding: 24px 32px;
+    overflow-y: auto;
+    height: 100vh;
+}
+
+/* Override body defaults for layout mode */
+body {
+    max-width: none;
+    padding: 0;
+}
+
+/* Outline panel — expanded state */
+.outline-panel {
+    width: 220px;
+    min-width: 220px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-left: 1px solid var(--border-color);
+    padding: 16px 0 16px 0;
+    font-size: 0.78em;
+    transition: width 0.2s, min-width 0.2s;
+}
+.outline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px 10px 16px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+.outline-title {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.outline-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8em;
+    color: var(--text-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    opacity: 0.5;
+}
+.outline-toggle:hover {
+    opacity: 1;
+    background: var(--inline-code-bg);
+}
+.outline-links {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Outline link items — h2 = bold section, h3 = indented sub */
+.outline-link {
+    display: block;
+    padding: 4px 16px;
+    color: var(--text-color);
+    text-decoration: none;
+    line-height: 1.4;
+    border-left: 2px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+    opacity: 0.6;
+    font-weight: 600;
+    font-size: 1em;
+}
+.outline-link:hover {
+    opacity: 1;
+    background: var(--inline-code-bg);
+}
+.outline-link.active {
+    opacity: 1;
+    border-left-color: var(--primary-color);
+    color: var(--primary-color);
+    background: var(--inline-code-bg);
+}
+.outline-link.outline-sub {
+    padding-left: 28px;
+    font-size: 0.88em;
+    font-weight: 400;
+    opacity: 0.55;
+}
+.outline-link.outline-sub:hover { opacity: 1; }
+.outline-link.outline-sub.active { opacity: 1; }
+
+/* Collapsed state — vertical tab with label */
+.outline-panel.collapsed {
+    width: 28px;
+    min-width: 28px;
+    padding: 0;
+    border-left: 1px solid var(--border-color);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* Fully hidden at very narrow widths */
+.outline-panel.outline-hidden {
+    display: none;
+}
+.outline-panel.collapsed .outline-header,
+.outline-panel.collapsed .outline-links {
+    display: none;
+}
+.outline-collapsed-tab {
+    display: none;
+}
+.outline-panel.collapsed .outline-collapsed-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 0.7em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-color);
+    opacity: 0.45;
+    user-select: none;
+    padding: 12px 0;
+}
+.outline-panel.collapsed:hover .outline-collapsed-tab {
+    opacity: 0.8;
+}
+
+/* Hide outline on narrow viewports — handled by JS resize observer */

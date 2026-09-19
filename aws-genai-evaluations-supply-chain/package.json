@@ -1,0 +1,17 @@
+{
+  "name": "agentcore_aigi",
+  "version": "1.0.0",
+  "description": "A full-stack demo showcasing the **AG-UI (Agent-User Interface) protocol** on **AWS AgentCore Runtime**. An AI agent co-authors documents with users in real-time, demonstrating:",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "playwright": "^1.59.1"
+  }
+}

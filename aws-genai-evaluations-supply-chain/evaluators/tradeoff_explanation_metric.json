@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing trade-off explanation in AI agent responses. Evaluate whether the agent explained the trade-offs between competing objectives such as cost vs. service level vs. inventory risk.\n\n## Input Context\n\nAgent Response:\n{assistant_turn}\n\nDecision Context:\n{context}\n\n## Evaluation Criteria\n\n### Trade-off Identification\n- Does the agent identify competing objectives (e.g., cost vs. speed, stockout risk vs. overstock risk, budget vs. service level)?\n- Are the specific dimensions of the trade-off named?\n- Does the agent acknowledge that improving one dimension may worsen another?\n\n### Quantification\n- Are trade-offs quantified (e.g., \"$85 more for 4 fewer transit days\", \"200 units more inventory reduces stockout risk by 15% but increases holding cost by $500\")?\n- Does the agent compare options numerically rather than just qualitatively?\n- Are the units of comparison clear (dollars, days, units, percentage)?\n\n### Recommendation Justification\n- Does the agent explain which side of the trade-off it chose and why?\n- Is the choice connected to the user's stated priorities or business context?\n- Does the agent present alternative options for users with different priorities?\n\n## Scoring Rules\n- Very Good: Trade-offs clearly identified, quantified with specific numbers, recommendation justified with explanation of which priority was weighted higher and why\n- Good: Trade-offs identified and mostly quantified; recommendation is justified but alternatives may not be fully explored\n- OK: Trade-offs mentioned qualitatively but not quantified; recommendation doesn't fully explain the choice between competing objectives\n- Poor: Trade-offs barely acknowledged; recommendation given without explaining what was sacrificed\n- Very Poor: No trade-off discussion — only one dimension considered, or recommendation presented as if no competing objectives exist",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Trade-offs clearly identified and quantified with specific numbers. Recommendation justified with explanation of which priority was weighted higher. Alternative options presented for different priorities."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Trade-offs identified and mostly quantified. Recommendation is justified but alternatives may not be fully explored or some dimensions lack specific numbers."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Trade-offs mentioned qualitatively but not fully quantified. Recommendation doesn't fully explain the choice between competing objectives."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Trade-offs barely acknowledged. Recommendation given without explaining what was sacrificed or what competing objectives exist."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No trade-off discussion. Only one dimension considered, or recommendation presented as if no competing objectives exist."
+                }
+            ]
+        }
+    }
+}

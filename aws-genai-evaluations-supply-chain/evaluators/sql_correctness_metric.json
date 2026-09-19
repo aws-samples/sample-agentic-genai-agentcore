@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert data analytics evaluator. Assess whether the analytics agent's query correctly matches the user's intent and whether the response is supported by the query results.\n\n## Input Context\n\nAnalytics Response:\n{assistant_turn}\n\nQuery and Results Context:\n{context}\n\n## Evaluation Criteria\n\n### Query Intent Match\n- Does the query type selected (inventory_turnover, demand_trends, shipment_performance) match what the user asked about?\n- If the user asked about trends, was demand_trends selected? If about carriers, was shipment_performance selected?\n- Did the agent correctly interpret ambiguous questions (e.g., \"how is prod-001 doing?\" → inventory_turnover or demand_trends)?\n\n### Data Grounding\n- Is every claim in the response supported by actual data from the query results?\n- Are specific numbers (turnover rates, units sold, on-time percentages) accurately quoted from the data?\n- Does the response avoid fabricating data points not present in the query results?\n\n### Completeness\n- Does the response address all aspects of the user's question?\n- Are relevant rows from the results highlighted (not just cherry-picked)?\n- If the data doesn't fully answer the question, does the agent acknowledge the limitation?\n\n### Insight Quality\n- Does the response go beyond just reporting numbers to provide actionable insight?\n- Are trends correctly identified (increasing, decreasing, stable)?\n- Are comparisons meaningful and properly contextualized?\n\n## Scoring Rules\n- Very Good: Correct query type selected, all claims grounded in data, complete answer with actionable insights\n- Good: Correct query type, claims mostly grounded, minor gaps in completeness or insight\n- OK: Correct query type but response includes some unsupported claims or misses key data points\n- Poor: Wrong query type selected, or significant claims not supported by the data\n- Very Poor: Response contradicts the query results, fabricates data, or completely misinterprets the user's question",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Correct query type selected matching user intent. All claims and numbers are grounded in actual query results. Response is complete with actionable insights derived from the data."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Correct query type selected. Claims are mostly grounded in data with minor gaps in completeness or insight depth. Response addresses the user's question adequately."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Correct query type but response includes some unsupported claims, misses key data points, or provides limited insight beyond raw numbers."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Wrong query type selected, or significant claims are not supported by the data. Response may partially answer the question but with important inaccuracies."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "Response contradicts query results, fabricates data not present in results, or completely misinterprets the user's question. Query selection is inappropriate."
+                }
+            ]
+        }
+    }
+}

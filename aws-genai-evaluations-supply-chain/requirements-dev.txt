@@ -1,0 +1,6 @@
+# Dev/test dependencies — not shipped to production containers
+-r terraform/agents/supply_chain/requirements.txt
+
+pytest
+pytest-asyncio
+pytest-mock

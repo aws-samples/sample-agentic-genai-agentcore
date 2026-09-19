@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert supply chain evaluator. Assess a distribution rebalancing recommendation on two dimensions:\n\n1. GROUNDEDNESS - Is the recommendation grounded in the provided inventory and demand data?\n2. RISK IMPACT - Does the recommendation improve stockout and overstock risk?\n\n## Input Context\n\nDistribution Recommendation:\n{assistant_turn}\n\nInventory and Demand Context:\n{context}\n\n## Evaluation Criteria\n\n### Groundedness\n- Does the source location have sufficient available inventory (on_hand - reserved) to fulfill the transfer quantity?\n- Is the transfer quantity proportional to the demand forecast at the destination?\n- Does the recommendation respect warehouse capacity constraints (destination utilization + transfer <= capacity)?\n- Does the recommendation stay within budget constraints?\n\n### Stockout/Overstock Risk Impact\n- Does the transfer reduce stockout risk at the destination (moving inventory toward locations with high demand or low stock)?\n- Does the transfer reduce overstock risk at the source (moving inventory away from locations with excess stock)?\n- After the transfer, are inventory levels at both source and destination closer to the recommended level?\n- Does the transfer avoid creating a new stockout risk at the source location?\n\n## Scoring Rules\n- Very Good: Recommendation is fully grounded in data AND clearly reduces both stockout and overstock risk\n- Good: Recommendation is grounded in data AND reduces risk on at least one dimension without worsening the other\n- OK: Recommendation is partially grounded (minor data gaps) OR risk impact is neutral\n- Poor: Recommendation has significant grounding issues OR increases risk on one dimension\n- Very Poor: Recommendation contradicts available data OR increases both stockout and overstock risk",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Recommendation is fully grounded in inventory and demand data. All transfers are supported by sufficient source inventory, proportional to demand, and clearly reduce both stockout and overstock risk at all locations."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Recommendation is grounded in data and reduces risk on at least one dimension (stockout or overstock) without worsening the other. Minor improvements possible but overall sound."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Recommendation is partially grounded with minor data gaps or the risk impact is neutral. The transfer is feasible but may not optimally address the inventory imbalance."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Recommendation has significant grounding issues (e.g. source may not have enough inventory) or increases risk on one dimension. Should be revised."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "Recommendation contradicts available inventory data (e.g. transferring more than available) or increases both stockout and overstock risk. Not feasible."
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing tool-use explainability in AI orchestrator agent responses. Evaluate whether the orchestrator explained why it invoked specific sub-agents or MCP tools to answer the user's question.\n\n## Input Context\n\nOrchestrator Response:\n{assistant_turn}\n\nTool Invocations and Context:\n{context}\n\n## Evaluation Criteria\n\n### Tool Selection Explanation\n- Does the orchestrator explain why it chose the specific sub-agent(s) it invoked?\n- Is there a clear mapping from the user's question to the tool/sub-agent selected (e.g., \"Since you asked about inventory levels, I'll use the optimization agent\")?\n- If only one sub-agent was used, does the agent explain why others were not needed?\n\n### Invocation Reasoning\n- Does the agent explain what parameters it passed to the tool and why?\n- Is it clear what information the agent expected to get from each tool call?\n- If multiple tools were called, does the agent explain the sequence and dependency?\n\n### Result Integration Explanation\n- Does the agent explain how it used the tool's output to form its answer?\n- Is it clear which parts of the response came from tool data vs. the agent's own reasoning?\n- Does the agent explain any transformation or interpretation applied to raw tool output?\n\n## Scoring Rules\n- Very Good: Clear explanation of why each tool was selected, what parameters were used, and how outputs were integrated into the final answer\n- Good: Tool selection is explained; some explanation of parameter choice and result usage, but integration logic may be implicit\n- OK: Agent mentions which tool it used but doesn't fully explain why it was chosen or how results were used\n- Poor: Tool usage is not explained — agent presents results without acknowledging where they came from\n- Very Poor: No explanation of tool use — response appears as if generated from general knowledge with no tool attribution",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Clear explanation of why each sub-agent/tool was selected, what parameters were used and why, and how tool outputs were integrated into the final answer."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Tool selection is explained with reasoning. Some explanation of parameter choice and result usage, but integration logic may be partly implicit."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Agent mentions which tool it used but doesn't fully explain why it was chosen over alternatives or how results were transformed into the answer."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Tool usage is not explained. Agent presents results without acknowledging which tool provided them or why that tool was appropriate."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No explanation of tool use. Response appears generated from general knowledge with no tool attribution or invocation reasoning."
+                }
+            ]
+        }
+    }
+}

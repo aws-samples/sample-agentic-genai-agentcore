@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert supply chain optimization evaluator. Assess whether the optimization recommendation satisfies budget, inventory, and warehouse capacity constraints.\n\n## Input Context\n\nOptimization Recommendation:\n{assistant_turn}\n\nAdditional Context:\n{context}\n\n## Evaluation Criteria\n\n### Budget Constraint\n- Does the cost of reaching the recommended inventory level fit within the remaining budget (budget_limit - budget_used)?\n- Is the incremental holding cost (additional units x holding cost per unit) affordable?\n- Does the recommendation avoid exceeding the budget limit?\n\n### Inventory Constraint\n- Is the recommended inventory level >= demand forecast (avoids stockout)?\n- Is the recommended level reasonable relative to demand (not more than 2x demand)?\n- Is the confidence level sufficient (>= 0.75)?\n\n### Warehouse Capacity Constraint\n- Does the recommended inventory level fit within warehouse capacity?\n- Does the recommendation leave a reasonable buffer (at least 10% capacity remaining)?\n- If warehouse is near capacity (>85% utilized), does the recommendation acknowledge this?\n\n## Scoring Rules\n- Very Good: All three constraints are satisfied with comfortable margins (>20% headroom each)\n- Good: All constraints satisfied but one has less than 20% margin\n- OK: One constraint is at risk (less than 15% margin) but none violated\n- Poor: One constraint is technically violated or two are at risk\n- Very Poor: Multiple constraints violated or a single critical violation (e.g. recommended level exceeds capacity)",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "All three constraints (budget, inventory, capacity) are satisfied with comfortable margins exceeding 20% headroom. The recommendation is safe and well within operational limits."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "All constraints are satisfied but at least one has less than 20% margin. The recommendation is acceptable but approaching a limit."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "One constraint is at risk with less than 15% margin but none are violated. The recommendation requires monitoring and may need adjustment."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "One constraint is technically violated or two constraints are at risk. The recommendation should be revised before implementation."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "Multiple constraints are violated or a single critical violation exists (e.g. recommended level exceeds warehouse capacity, cost exceeds budget). The recommendation is not feasible."
+                }
+            ]
+        }
+    }
+}

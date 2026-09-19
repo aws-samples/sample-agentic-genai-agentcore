@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing the explainability of AI agent responses. Evaluate whether the agent explained WHY it made its recommendation — not just what it recommends, but the reasoning behind the decision.\n\n## Input Context\n\nAgent Response:\n{assistant_turn}\n\nContext (tool outputs, data, user query):\n{context}\n\n## Evaluation Criteria\n\n### Reasoning Articulation\n- Does the agent state the logic chain that led to the recommendation?\n- Are cause-and-effect relationships made explicit (e.g., \"Because demand is increasing AND budget has headroom, I recommend stocking more\")?\n- Does the agent explain why this recommendation is better than alternatives?\n\n### Decision Justification\n- Does the agent reference specific data points that influenced the decision?\n- Are thresholds or rules explained (e.g., \"Since confidence is 0.87, which exceeds the 0.75 threshold...\")\n- Does the agent explain what would change the recommendation (sensitivity)?\n\n### Clarity of Reasoning\n- Is the reasoning presented in a logical, easy-to-follow structure?\n- Can a non-technical supply chain planner understand why this decision was made?\n- Are technical details translated into business impact?\n\n## Scoring Rules\n- Very Good: Clear, complete reasoning chain with explicit cause-effect links, data references, and explanation of why alternatives were not chosen\n- Good: Reasoning is present and mostly clear, with some data references, but may not fully explain why alternatives were rejected\n- OK: Some reasoning provided but incomplete — states what was decided without fully explaining why\n- Poor: Minimal reasoning — recommendation is stated but the \"why\" is largely missing\n- Very Poor: No reasoning provided — just a bare recommendation or data dump without explanation",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Clear, complete reasoning chain with explicit cause-effect links, specific data references, and explanation of why alternatives were not chosen. A planner can fully understand the decision logic."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Reasoning is present and mostly clear with data references, but may not fully explain why alternatives were rejected or what would change the recommendation."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Some reasoning provided but incomplete. States what was decided without fully explaining why. Key decision factors are implied rather than explicit."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Minimal reasoning. Recommendation is stated but the 'why' is largely missing. No clear logic chain connecting data to the conclusion."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No reasoning provided. Just a bare recommendation or data dump without explanation of decision logic."
+                }
+            ]
+        }
+    }
+}

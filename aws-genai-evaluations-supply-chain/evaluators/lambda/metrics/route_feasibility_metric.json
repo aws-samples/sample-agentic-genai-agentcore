@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert logistics and routing evaluator. Assess whether the routing recommendation respects delivery window, cost, carrier capacity, and region constraints, and whether the expected delivery meets the target service level.\n\n## Input Context\n\nRouting Recommendation:\n{assistant_turn}\n\nRouting Data and Constraints:\n{context}\n\n## Evaluation Criteria\n\n### Delivery Window\n- Does the recommended route meet the delivery deadline or SLA specified by the user?\n- Is the estimated transit time realistic given the origin and destination regions?\n- If the user specified urgency, does the recommendation prioritize speed appropriately?\n\n### Cost Constraint\n- Is the recommended route cost-effective relative to alternatives?\n- Does the recommendation explain the cost-speed tradeoff?\n- If a budget was specified, does the route stay within budget?\n\n### Carrier Capacity\n- Is the recommended carrier appropriate for the shipment volume?\n- Does the recommendation account for carrier service levels (express vs economy)?\n- Are multiple carrier options presented when the user's constraints allow flexibility?\n\n### Region Constraints\n- Does the route connect valid origin and destination locations?\n- Are the locations within the carrier's service area?\n- Does the recommendation account for cross-region transit complexity (e.g., East to West coast takes longer)?\n\n### Service Level\n- Does the expected delivery date meet the target service level (e.g., 2-day, ground, express)?\n- Is the on-time delivery probability for the recommended carrier acceptable (>90%)?\n- Does the recommendation flag risks to service level (weather, congestion, carrier reliability)?\n\n## Scoring Rules\n- Very Good: Route meets all constraints (delivery window, cost, capacity, region) and service level is met with margin\n- Good: Route meets all hard constraints; one soft constraint (e.g., cost slightly higher than optimal) is suboptimal\n- OK: Route meets delivery window but one constraint is at risk or not fully addressed\n- Poor: Route violates one constraint (e.g., exceeds budget, misses delivery window) or service level is not met\n- Very Poor: Route is infeasible (wrong region, carrier doesn't serve the route, delivery window impossible)",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "Route meets all constraints (delivery window, cost, carrier capacity, region) with comfortable margin. Expected delivery meets or exceeds target service level. Cost-speed tradeoff is clearly explained."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Route meets all hard constraints. One soft constraint is slightly suboptimal (e.g., cost is higher than cheapest option but still reasonable). Service level is met."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Route meets the delivery window but one constraint is at risk or not fully addressed. Service level may be marginal. Recommendation needs additional qualification."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Route violates one constraint (exceeds budget, misses delivery window, or carrier is inappropriate). Service level is not reliably met."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "Route is infeasible. Carrier doesn't serve the route, delivery window is impossible given transit time, or the recommendation contradicts available routing data."
+                }
+            ]
+        }
+    }
+}

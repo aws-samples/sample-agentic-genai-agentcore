@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROJECT_NAME}}</title>
+    <style>{{INDEX_CSS}}</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-left">
+        <img src="{{LOGO_DATA_URI}}" alt="APEX" class="header-logo">
+        <div class="header-sep"></div>
+        <div class="header-project">{{PROJECT_NAME}}</div>
+    </div>
+    <div class="header-right">
+        <span class="header-label">Project Documentation</span>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+    </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+    <!-- NAV -->
+    <nav class="nav-panel">
+        {{NAV_TABS}}
+        <div class="nav-scroll">
+            {{NAV_TAB_CONTENTS}}
+            <!-- All Docs tab -->
+            <div class="tab-content{{ALL_DOCS_ACTIVE}}" id="tab-all">
+                <ul class="doc-tree">
+                    {{NAV_TREE}}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- RESIZER -->
+    <div class="resizer" id="resizer"></div>
+
+    <!-- CONTENT -->
+    <div class="content-panel">
+        <iframe id="content-frame" name="content-frame" src="{{DEFAULT_DOC}}"></iframe>
+    </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+    Generated on {{DATE}} by APEX &middot; AWS Professional Services
+</footer>
+
+<script>
+function switchTab(id, el) {
+    document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    el.classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+}
+
+function toggleFolder(el) {
+    el.classList.toggle('collapsed');
+    var nested = el.nextElementSibling;
+    if (nested) nested.classList.toggle('collapsed');
+}
+
+function selectStep(el, href) {
+    document.querySelectorAll('.reading-step').forEach(function(s) { s.classList.remove('active'); });
+    document.querySelectorAll('.doc-file').forEach(function(s) { s.classList.remove('active'); });
+    el.classList.add('active');
+    if (href) document.getElementById('content-frame').src = href;
+}
+
+function selectDoc(el, href) {
+    document.querySelectorAll('.doc-file').forEach(function(s) { s.classList.remove('active'); });
+    document.querySelectorAll('.reading-step').forEach(function(s) { s.classList.remove('active'); });
+    el.classList.add('active');
+    if (href) document.getElementById('content-frame').src = href;
+}
+
+function openAdrFolder(el) {
+    document.querySelectorAll('.reading-step').forEach(function(s) { s.classList.remove('active'); });
+    document.querySelectorAll('.doc-file').forEach(function(s) { s.classList.remove('active'); });
+    el.classList.add('active');
+    // Switch to All Docs tab
+    document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelector('.nav-tab:last-child').classList.add('active');
+    document.getElementById('tab-all').classList.add('active');
+    // Expand ADR folder
+    var adrFolder = document.getElementById('adr-folder');
+    if (adrFolder) {
+        var archFolder = adrFolder.closest('.doc-nested');
+        if (archFolder && archFolder.classList.contains('collapsed')) {
+            archFolder.classList.remove('collapsed');
+            archFolder.previousElementSibling.classList.remove('collapsed');
+        }
+        adrFolder.classList.remove('collapsed');
+        var adrNested = adrFolder.nextElementSibling;
+        if (adrNested) adrNested.classList.remove('collapsed');
+        adrFolder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// Theme toggle — syncs to iframes via postMessage
+function toggleTheme() {
+    document.body.classList.toggle('dark');
+    var btn = document.querySelector('.theme-toggle');
+    var isDark = document.body.classList.contains('dark');
+    btn.textContent = isDark ? '☀️' : '🌙';
+    var frame = document.getElementById('content-frame');
+    if (frame && frame.contentWindow) {
+        frame.contentWindow.postMessage({ type: 'theme', dark: isDark }, '*');
+    }
+}
+
+// Resizer
+var resizer = document.getElementById('resizer');
+var navPanel = document.querySelector('.nav-panel');
+var isResizing = false;
+resizer.addEventListener('mousedown', function() {
+    isResizing = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.getElementById('content-frame').style.pointerEvents = 'none';
+});
+document.addEventListener('mousemove', function(e) {
+    if (!isResizing) return;
+    var w = e.clientX;
+    if (w >= 200 && w <= window.innerWidth * 0.5) navPanel.style.width = w + 'px';
+});
+document.addEventListener('mouseup', function() {
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.getElementById('content-frame').style.pointerEvents = '';
+});
+
+// Sync theme to iframe on load
+document.getElementById('content-frame').addEventListener('load', function() {
+    var isDark = document.body.classList.contains('dark');
+    if (this.contentWindow) {
+        this.contentWindow.postMessage({ type: 'theme', dark: isDark }, '*');
+    }
+});
+</script>
+
+</body>
+</html>

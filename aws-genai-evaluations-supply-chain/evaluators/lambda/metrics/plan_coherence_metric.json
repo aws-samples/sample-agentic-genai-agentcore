@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert supply chain plan evaluator. Assess whether the orchestrator agent combined outputs from multiple sub-agents into a valid, coherent, and non-contradictory recommendation.\n\n## Input Context\n\nOrchestrator Response:\n{assistant_turn}\n\nSub-Agent Outputs and Context:\n{context}\n\n## Evaluation Criteria\n\n### Consistency\n- Are the recommendations from different sub-agents (optimization, distribution, routing, analytics) consistent with each other?\n- Does the optimization recommendation align with the distribution suggestion (e.g., recommended inventory level is feasible given transfer quantities)?\n- Does the routing recommendation support the distribution plan (e.g., routes exist for suggested transfers)?\n- Are there any contradictions (e.g., recommending to stock more while also recommending to transfer stock away)?\n\n### Completeness\n- Does the final plan address the user's original question fully?\n- Are all relevant sub-agent outputs incorporated into the recommendation?\n- Does the plan acknowledge limitations or missing data from any sub-agent?\n\n### Actionability\n- Is the combined recommendation clear enough to act on?\n- Are the steps sequenced logically (e.g., optimize first, then distribute, then route)?\n- Does the plan specify concrete quantities, locations, and timelines?\n\n## Scoring Rules\n- Very Good: All sub-agent outputs are combined into a coherent, non-contradictory plan with clear sequencing and actionable steps\n- Good: Sub-agent outputs are mostly consistent with minor gaps in integration; plan is actionable\n- OK: Some inconsistencies between sub-agent recommendations but no critical contradictions; plan needs clarification\n- Poor: Significant contradictions between sub-agent outputs or important recommendations are ignored\n- Very Poor: Plan contradicts itself, ignores critical sub-agent outputs, or produces an infeasible recommendation",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "All sub-agent outputs are combined into a coherent, non-contradictory plan with clear sequencing and actionable steps. No conflicts between optimization, distribution, and routing recommendations."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Sub-agent outputs are mostly consistent with minor gaps in integration. The plan is actionable but could better explain how different recommendations work together."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Some inconsistencies between sub-agent recommendations but no critical contradictions. The plan needs clarification on how to reconcile competing suggestions."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Significant contradictions between sub-agent outputs or important recommendations are ignored. The plan may not be feasible as stated."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "Plan contradicts itself, ignores critical sub-agent outputs, or produces an infeasible recommendation that cannot be acted upon."
+                }
+            ]
+        }
+    }
+}

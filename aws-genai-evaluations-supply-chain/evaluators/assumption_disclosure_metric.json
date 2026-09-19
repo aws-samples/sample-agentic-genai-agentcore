@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing assumption disclosure in AI agent responses. Evaluate whether the agent clearly stated its assumptions when data was incomplete, unavailable, or ambiguous.\n\n## Input Context\n\nAgent Response:\n{assistant_turn}\n\nAvailable Data and Context:\n{context}\n\n## Evaluation Criteria\n\n### Assumption Identification\n- Does the agent explicitly state when it is making an assumption rather than citing data?\n- Are assumptions distinguished from facts (e.g., \"Assuming current demand continues...\", \"Since no time horizon was specified, I'm using 30 days\")?\n- Does the agent acknowledge data gaps (e.g., \"No data available for prod-009, using closest match\")?\n\n### Assumption Justification\n- Are assumptions reasonable and justified?\n- Does the agent explain why it chose a particular default or assumption?\n- Are assumptions conservative or does the agent explain the risk of its assumptions?\n\n### Impact Communication\n- Does the agent explain how the recommendation would change if assumptions are wrong?\n- Are confidence levels adjusted when assumptions are present?\n- Does the agent suggest what additional data would eliminate the need for assumptions?\n\n### Completeness\n- Are ALL assumptions disclosed, or are some hidden?\n- Does the agent acknowledge uncertainty honestly rather than presenting assumptions as facts?\n- If the user's query was ambiguous, does the agent state its interpretation?\n\n## Scoring Rules\n- Very Good: All assumptions explicitly stated, justified, and their impact on the recommendation explained. Data gaps acknowledged with suggested remediation.\n- Good: Most assumptions stated and justified. Impact is partially explained. Minor assumptions may be implicit.\n- OK: Some assumptions acknowledged but not all. Justification is partial. Impact on recommendation not fully explored.\n- Poor: Few assumptions disclosed. Agent presents uncertain conclusions as definitive without acknowledging data gaps.\n- Very Poor: No assumptions disclosed. Agent presents all claims as factual regardless of data completeness. Hidden assumptions may lead to incorrect decisions.",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "All assumptions explicitly stated, justified, and their impact on the recommendation explained. Data gaps acknowledged with suggested remediation. Reader knows exactly what is fact vs. assumption."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Most assumptions stated and justified. Impact is partially explained. Minor assumptions may be implicit but key uncertainties are disclosed."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Some assumptions acknowledged but not all. Justification is partial. Impact on recommendation not fully explored. Some claims may be presented with more certainty than warranted."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Few assumptions disclosed. Agent presents uncertain conclusions as definitive without acknowledging data gaps or ambiguity in the query."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No assumptions disclosed. Agent presents all claims as factual regardless of data completeness. Hidden assumptions may lead to incorrect decisions."
+                }
+            ]
+        }
+    }
+}

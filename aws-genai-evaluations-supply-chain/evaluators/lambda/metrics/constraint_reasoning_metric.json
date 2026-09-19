@@ -1,0 +1,43 @@
+{
+    "llmAsAJudge": {
+        "modelConfig": {
+            "bedrockEvaluatorModelConfig": {
+                "modelId": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "inferenceConfig": {
+                    "maxTokens": 1000,
+                    "temperature": 0.0
+                }
+            }
+        },
+        "instructions": "You are an expert evaluator assessing constraint reasoning in AI agent responses. Evaluate whether the agent explained which constraints shaped the final answer and how they influenced the recommendation.\n\n## Input Context\n\nAgent Response:\n{assistant_turn}\n\nConstraint Data and Context:\n{context}\n\n## Evaluation Criteria\n\n### Constraint Identification\n- Does the agent explicitly name the constraints it considered (budget, warehouse capacity, demand forecast, delivery window, carrier capacity)?\n- Are the constraint values stated (e.g., \"budget remaining: $17,500\", \"warehouse capacity: 1,800 units available\")?\n- Does the agent identify which constraints are binding vs. non-binding?\n\n### Constraint Impact Explanation\n- Does the agent explain HOW each constraint shaped the recommendation?\n- Is it clear which constraint was the most limiting factor?\n- Does the agent explain what the recommendation would be without the binding constraint?\n\n### Constraint Satisfaction Status\n- Does the agent explicitly state whether each constraint is satisfied, at risk, or violated?\n- Are margins/headroom quantified (e.g., \"20% buffer remaining\", \"$4,000 under budget\")?\n- Does the agent flag near-violations or tight constraints that need monitoring?\n\n## Scoring Rules\n- Very Good: All relevant constraints identified, their values stated, impact on the recommendation explained, and satisfaction status with margins clearly communicated\n- Good: Most constraints identified and explained; satisfaction status is clear but margins may not be fully quantified\n- OK: Constraints are mentioned but their impact on the decision is not fully explained; some constraints may be omitted\n- Poor: Few constraints mentioned; no explanation of how they shaped the answer\n- Very Poor: No constraint reasoning — recommendation is given without any discussion of limitations or boundaries",
+        "ratingScale": {
+            "numerical": [
+                {
+                    "value": 1,
+                    "label": "Very Good",
+                    "definition": "All relevant constraints identified with values stated. Impact on recommendation clearly explained. Satisfaction status with quantified margins communicated. Binding constraints highlighted."
+                },
+                {
+                    "value": 0.75,
+                    "label": "Good",
+                    "definition": "Most constraints identified and explained. Satisfaction status is clear but margins may not be fully quantified for all constraints."
+                },
+                {
+                    "value": 0.50,
+                    "label": "OK",
+                    "definition": "Constraints are mentioned but their impact on the decision is not fully explained. Some constraints may be omitted or only superficially addressed."
+                },
+                {
+                    "value": 0.25,
+                    "label": "Poor",
+                    "definition": "Few constraints mentioned. No explanation of how they shaped the answer. Reader cannot understand what limited the recommendation."
+                },
+                {
+                    "value": 0,
+                    "label": "Very Poor",
+                    "definition": "No constraint reasoning. Recommendation is given without any discussion of limitations, boundaries, or feasibility constraints."
+                }
+            ]
+        }
+    }
+}

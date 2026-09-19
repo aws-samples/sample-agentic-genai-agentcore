@@ -1,0 +1,16 @@
+# ============================================================================
+# Copy this file to terraform.tfvars and customize
+#   cp terraform.tfvars.example terraform.tfvars
+# ============================================================================
+
+aws_region  = "us-east-1"
+environment = "demo"
+stack_name  = "agentcore-supply-chain"
+
+# REQUIRED: existing VPC ID
+vpc_id = "vpc-xxxxxxxxxxxxxxxxx"
+
+# Availability zones to use for runtime ENIs.
+# MUST be supported by BOTH AgentCore (use1-az1/az2/az4) AND all VPC endpoints
+# we create. For us-east-1, the safe intersection is:
+runtime_subnet_azs = ["us-east-1b", "us-east-1c"]

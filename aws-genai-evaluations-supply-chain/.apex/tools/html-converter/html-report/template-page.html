@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}}</title>
+    <script src="{{MERMAID_PATH}}"></script>
+    <style>{{PAGE_CSS}}</style>
+</head>
+<body>
+    <div class="page-layout">
+        <article class="page-content" id="page-content">{{CONTENT}}</article>
+        <nav class="outline-panel" id="outline-panel">
+            <div class="outline-header">
+                <span class="outline-title">Outline</span>
+                <button class="outline-toggle" id="outline-toggle" title="Collapse outline">◀</button>
+            </div>
+            <div class="outline-links" id="outline-links"></div>
+            <div class="outline-collapsed-tab" id="outline-collapsed-tab">Outline</div>
+        </nav>
+    </div>
+    <script>mermaid.initialize({startOnLoad: true, theme: 'neutral'});</script>
+    <script>
+    // Theme sync from parent frame
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'theme') {
+            document.body.classList.toggle('dark', e.data.dark);
+        }
+    });
+
+    // Outline: built client-side from rendered h2/h3 elements
+    (function() {
+        var content = document.getElementById('page-content');
+        var panel = document.getElementById('outline-panel');
+        var linksContainer = document.getElementById('outline-links');
+        var headings = content.querySelectorAll('h2, h3');
+
+        // Hide outline entirely if fewer than 2 headings
+        if (headings.length < 2) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        // Build outline links from headings
+        var links = [];
+        headings.forEach(function(h) {
+            var a = document.createElement('a');
+            a.className = 'outline-link' + (h.tagName === 'H3' ? ' outline-sub' : '');
+            a.href = '#' + h.id;
+            a.textContent = h.textContent;
+            a.setAttribute('data-target', h.id);
+            linksContainer.appendChild(a);
+            links.push({ el: h, link: a });
+        });
+
+        // Click: scroll to heading + highlight in both outline and content
+        linksContainer.addEventListener('click', function(e) {
+            var link = e.target.closest('.outline-link');
+            if (!link) return;
+            e.preventDefault();
+            var id = link.getAttribute('data-target');
+            var target = document.getElementById(id);
+            if (!target) return;
+            setActive(link);
+            content.scrollTo({ top: target.offsetTop - 20, behavior: 'smooth' });
+            // Flash the heading after scroll finishes (not immediately)
+            waitForScrollEnd(content, function() {
+                flashHeading(target);
+            });
+        });
+
+        // Wait for scroll to settle before firing callback
+        function waitForScrollEnd(el, cb) {
+            var timer = null;
+            function onScroll() {
+                clearTimeout(timer);
+                timer = setTimeout(function() {
+                    el.removeEventListener('scroll', onScroll);
+                    cb();
+                }, 80);
+            }
+            el.addEventListener('scroll', onScroll);
+            // Fallback if no scroll event fires (target already in view)
+            timer = setTimeout(function() {
+                el.removeEventListener('scroll', onScroll);
+                cb();
+            }, 100);
+        }
+
+        function flashHeading(el) {
+            // Clear any previous flash on any heading
+            content.querySelectorAll('.heading-highlight').forEach(function(h) {
+                h.classList.remove('heading-highlight');
+            });
+            void el.offsetWidth;
+            el.classList.add('heading-highlight');
+            el.addEventListener('animationend', function handler() {
+                el.classList.remove('heading-highlight');
+                el.removeEventListener('animationend', handler);
+            });
+        }
+
+        // Scroll spy: track which heading is in view
+        var ticking = false;
+        content.addEventListener('scroll', function() {
+            if (!ticking) {
+                requestAnimationFrame(function() {
+                    updateScrollSpy();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+
+        function updateScrollSpy() {
+            var scrollTop = content.scrollTop;
+            var current = null;
+            for (var i = 0; i < links.length; i++) {
+                if (links[i].el.offsetTop - 60 <= scrollTop) {
+                    current = links[i].link;
+                }
+            }
+            if (current) setActive(current);
+        }
+
+        function setActive(link) {
+            links.forEach(function(l) { l.link.classList.remove('active'); });
+            link.classList.add('active');
+            // Keep active link visible in outline scroll area
+            link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        // Activate first link on load
+        if (links.length > 0) setActive(links[0].link);
+
+        // Auto-collapse/hide outline based on available width
+        var autoCollapsed = false;
+        var manualToggle = false;
+        var COLLAPSE_WIDTH = 700;
+        var HIDE_WIDTH = 450;
+
+        function checkWidth() {
+            var w = document.documentElement.clientWidth;
+            if (w < HIDE_WIDTH) {
+                panel.classList.add('outline-hidden');
+            } else {
+                panel.classList.remove('outline-hidden');
+                if (w < COLLAPSE_WIDTH && !panel.classList.contains('collapsed')) {
+                    panel.classList.add('collapsed');
+                    document.getElementById('outline-toggle').textContent = '▶';
+                    autoCollapsed = true;
+                } else if (w >= COLLAPSE_WIDTH && autoCollapsed && !manualToggle) {
+                    panel.classList.remove('collapsed');
+                    document.getElementById('outline-toggle').textContent = '◀';
+                    autoCollapsed = false;
+                }
+            }
+        }
+
+        // Override toggle handlers to track manual intent
+        document.getElementById('outline-toggle').addEventListener('click', function() {
+            manualToggle = true;
+            autoCollapsed = false;
+            panel.classList.toggle('collapsed');
+            this.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+        });
+        document.getElementById('outline-collapsed-tab').addEventListener('click', function() {
+            manualToggle = true;
+            autoCollapsed = false;
+            panel.classList.remove('collapsed');
+            document.getElementById('outline-toggle').textContent = '◀';
+        });
+
+        window.addEventListener('resize', checkWidth);
+        checkWidth();
+    })();
+    </script>
+</body>
+</html>
