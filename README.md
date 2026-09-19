@@ -1,4 +1,3 @@
-
 # Repository Structure
 
 ## [aws-genai-campaign-review-strands-agentcore](https://github.com/aws-samples/sample-agentic-genai-agentcore/tree/main/aws-genai-campaign-review-strands-agentcore)
@@ -9,4 +8,9 @@ Uses the AWS Strands agent framework for multi-agent orchestration using agents 
 
 Uses LangGraph with LangChain agents for a multi-agent orchestration implementation deployed as a Lambda function with a Lambda Layer. Three agents (Persona Reviewer, Validator, Finalizer) run sequentially through a LangGraph StateGraph workflow. Demonstrates orchestratation of parallel human-perspective reviews using diverse personas to ensure marketing campaigns resonate authentically with target audiences while maintaining legal compliance and brand standards.  Users upload campaign documents via a React frontend, the backend triggers agents asynchronously, and the frontend polls for results as they become available. Includes AgentCore Memory integration with Langgraph for multi-agent shared memory i.e. to provide both context and shared memory across independent agent runs ands well as to provide support for multi-turn conversations. Includes AgentCore Observability integration via OpenTelemetry for end-to-end tracing of agent and tool invocations.
 
+
+
+## [aws-genai-evaluations-supply-chain](https://github.com/aws-samples/sample-agentic-genai-agentcore/tree/main/aws-genai-evaluations-supply-chain)
+
+A multi-agent supply chain optimization system built with Strands SDK and Amazon Bedrock AgentCore Evaluations. An orchestrator agent delegates to four specialized sub-agents — Optimization, Distribution, Routing, and Analytics — each backed by MCP tools that call mock REST APIs serving supply chain data. We focus specifically on explainability as a first-class evaluation dimension. We demonstrate how built-in evaluators can assess general response clarity, while custom evaluators are used to verify that agents explicitly articulate decision rationale, reference supporting data or tool outputs, and explain tradeoffs such as cost versus service level. By combining these evaluators, we show how AgentCore Evaluations can move beyond surface-level response quality and provide structured, measurable insights into how and why agents arrive at their decisions.
 
